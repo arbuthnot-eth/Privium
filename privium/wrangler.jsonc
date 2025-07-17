@@ -10,8 +10,6 @@
 	"compatibility_flags": [
 		"nodejs_compat"
 	],
-	"vars": {
-	},
 	"migrations": [
 		{
 			"new_sqlite_classes": [
@@ -24,7 +22,7 @@
 		"bindings": [
 			{
 				"class_name": "MCPrivy",
-				"name": "MCPrivy_OBJECT"
+				"name": "MCP_OBJECT"
 			}
 		]
 	},
@@ -39,9 +37,6 @@
 	},
 	"observability": {
 		"enabled": true
-	},
-	"dev": {
-		"port": 8788
 	}
 	/**
 	 * Smart Placement
