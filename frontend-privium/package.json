@@ -12,6 +12,7 @@
 		"cf-typegen": "wrangler types"
 	},
 	"dependencies": {
+		"@privy-io/react-auth": "^2.18.1",
 		"react": "^19.1.0",
 		"react-dom": "^19.1.0"
 	},
