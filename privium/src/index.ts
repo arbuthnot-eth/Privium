@@ -1,7 +1,7 @@
 import { PrivyClient } from "@privy-io/server-auth";
 import { McpAgent } from "agents/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod";
+import { registerTools } from "./mcp_tools";
 
 
 
@@ -25,67 +25,15 @@ function initPrivyClient(env: Env): PrivyClient {
   }
   
 
-// Define our MCP agent with tools
+// Define our MCP agent with version and register tools
 export class MCPrivy extends McpAgent {
 	server = new McpServer({
 		name: "Privium",
-		version: "0.0.11",
+		version: "0.0.12",
 	});
-
 	async init() {
-		// Simple addition tool
-		this.server.tool(
-			"add",
-			{ a: z.number(), b: z.number() },
-			async ({ a, b }) => ({
-				content: [{ type: "text", text: String(a + b) }],
-			})
-		);
-
-		// Calculator tool with multiple operations
-		this.server.tool(
-			"calculate",
-			{
-				operation: z.enum(["add", "subtract", "multiply", "divide"]),
-				a: z.number(),
-				b: z.number(),
-			},
-			async ({ operation, a, b }) => {
-				let result: number;
-				switch (operation) {
-					case "add":
-						result = a + b;
-						break;
-					case "subtract":
-						result = a - b;
-						break;
-					case "multiply":
-						result = a * b;
-						break;
-					case "divide":
-						if (b === 0)
-							return {
-								content: [
-									{
-										type: "text",
-										text: "Error: Cannot divide by zero",
-									},
-								],
-							};
-						result = a / b;
-						break;
-				}
-				return { content: [{ type: "text", text: String(result) }] };
-			}
-		);
-
-
-    // TODO: Add your own tools here, e.g., a "signMessage" tool that integrates with Privy/wallet logic
-    // this.server.tool("signMessage", { message: z.string() }, async ({ message }) => { 
-    //   if (!this.env.userId) throw new Error("Unauthorized");
-    //   ... 
-    // });
-
+		// Register tools from external file (mcp_tools.ts)
+		registerTools(this.server);
 	}
 }
 
