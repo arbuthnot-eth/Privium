@@ -13,6 +13,7 @@
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "1.13.1",
+		"@privy-io/server-auth": "^1.28.4",
 		"agents": "^0.0.100",
 		"zod": "^3.25.67"
 	},
