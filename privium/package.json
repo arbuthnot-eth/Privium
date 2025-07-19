@@ -12,7 +12,7 @@
 		"type-check": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@modelcontextprotocol/sdk": "^1.15.1",
+		"@modelcontextprotocol/sdk": "^1.16.0",
 		"@privy-io/server-auth": "^1.28.4",
 		"agents": "^0.0.100",
 		"zod": "^3.25.67"
@@ -21,6 +21,6 @@
 		"@biomejs/biome": "^2.0.6",
 		"@types/node": "^24.0.14",
 		"typescript": "^5.8.3",
-		"wrangler": "^4.24.4"
+		"wrangler": "^4.25.0"
 	}
 }
