@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { usePrivy, useLogout, useLogin, getAccessToken } from '@privy-io/react-auth'
+import { usePrivy, useLogout, useLogin, getAccessToken } from '@privy-io/react-auth';
+import { useState, useCallback, useEffect } from 'react';
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import cloudflareLogo from './assets/Cloudflare_Logo.svg'
@@ -34,9 +34,29 @@ function LoginScreen() {
   );
 }
 
-function AppContent({ user }: { user: any }) {
-  const [count, setCount] = useState(0)
-  const [name, setName] = useState('unknown')
+function CopyToClipboardButton({ textToCopy }: { textToCopy: string }) {
+  const [isCopied, setIsCopied] = useState(false);
+
+  const handleCopyClick = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(textToCopy);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000); // Reset "Copied!" message after 2 seconds
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
+  }, [textToCopy]);
+
+  return (
+    <button onClick={handleCopyClick} style={{ marginLeft: '10px', padding: '5px 10px', fontSize: '14px', cursor: 'pointer' }}>
+      {isCopied ? 'Copied!' : 'Copy'}
+    </button>
+  );
+}
+
+function AppContent({ user, accessToken }: { user: any, accessToken: string }) {
+  const [count, setCount] = useState(0);
+  const [name, setName] = useState('unknown');
 
   return (
     <>
@@ -85,12 +105,26 @@ function AppContent({ user }: { user: any }) {
         Click on the Vite and React logos to learn more
       </p>
       <p key="user-info">User {user?.id} is logged in.</p>
+      <div key="access-token-display" style={{ display: 'flex', alignItems: 'center', marginTop: '1rem' }}>
+        <p style={{ margin: 0 }}>Access Token: {accessToken ? `${accessToken.substring(0, 20)}...` : 'N/A'}</p>
+        {accessToken && <CopyToClipboardButton textToCopy={accessToken} />}
+      </div>
     </>
-  )
+  );
 }
 
 export default function App() {
   const { ready, authenticated, user } = usePrivy();
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (ready && authenticated) {
+      getAccessToken().then(token => {
+        setAccessToken(token);
+        console.log(token);
+      });
+    }
+  }, [ready, authenticated]);
   
   if (!ready) {
       // Do nothing while the PrivyProvider initializes with updated user state
@@ -104,6 +138,7 @@ export default function App() {
   
   if (ready && authenticated) {
       // Show the main app content when authenticated
-      return <AppContent user={user} />;
+      return <AppContent user={user} accessToken={accessToken || ''} />;
   }
+  return null; // Should not reach here, but good for exhaustive checks
 }

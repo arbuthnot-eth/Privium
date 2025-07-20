@@ -3,17 +3,56 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { McpAgent } from "agents/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
+import { oauthMetadata } from '@modelcontextprotocol/sdk/src/shared/oauth.js';
+import { randomUUID } from 'crypto';
 import { registerTools } from "./mcp_tools";
 
-// Check for OAuth flag
-const useOAuth = process.argv.includes('--oauth');
-const app = new Hono<{ Bindings: Env }>();
+const app = new Hono<{ Bindings: Env/*, MCP_OBJECT: MCPrivy */ }>();
+
+  
+// Define our MCP agent with version and register tools
+export class MCPrivy extends McpAgent {
+	server = new McpServer({ name: "Privium", version: "0.1.1" });
+	initialState = {sesh: null};
+	transport: StreamableHTTPServerTransport | undefined;
+
+	async init() {
+
+		// Register tools from external file (mcp_tools.ts)
+		registerTools(this.server);
+		
+		// Attach custom transport for specific sessions
+		const transport = new StreamableHTTPServerTransport({
+			sessionIdGenerator: () => randomUUID(),
+			onsessioninitialized: (sessionId) => {
+				// Integrate with McpAgent state for persistence
+				this.setState({sesh: sessionId});
+				// Assign the transport to the agent (since agent is per-session)
+				this.transport = transport;
+				// Log the session ID for debugging
+				console.log(`Session initialized with ID: ${sessionId}`);
+			},			
+		});
+
+		transport.onclose = () => {
+			console.log(`Session closed for ID: ${transport.sessionId}`);
+			this.setState({sesh: null});
+			this.transport = undefined;
+		};
+
+		// Connect the agent's McpServer to the transport
+		await this.server.connect(transport);
+	}
+}
 
 interface Env {
 	PRIVY_APP_ID: string;
 	PRIVY_APP_SECRET: string;
 	AUTH_PRIVATE_KEY: string; // Use this PEM key for signing (SDK handles it)
 	QUORUM_ID: string;
+	MCP_OBJECT: MCPrivy;
 	userId?: string; // Extended dynamically for per-request user context
 }
 
@@ -27,63 +66,33 @@ function initPrivyClient(env: Env): PrivyClient {
 	});
 }
 
-// // Helper to verify token and extend env with userId
-// async function verifyToken(token: string | null, env: Env): Promise<Env | null> {
-// 	if (!token) {
-// 		console.log('No token provided');
-// 		return null;
-// 	}
-// 	try {
-// 		const client = initPrivyClient(env);
-// 		const verificationResult = await client.verifyAuthToken(token);
-// 		console.log('Token verification successful for user:', verificationResult.userId);
-// 		return { ...env, userId: verificationResult.userId };
-// 	} catch (error) {
-// 		console.error('Authentication error:', error);
-// 		return null;
-// 	}
-// }
-
-
-
 // Allow CORS all domains, expose the Mcp-Session-Id header
 app.use(cors({
 	origin: '*', // Allow all origins
 	exposeHeaders: ["Mcp-Session-Id"]
-  }));
-  
-// Define our MCP agent with version and register tools
-export class MCPrivy extends McpAgent {
-	server = new McpServer({
-		name: "Privium",
-		version: "0.0.12",
-	});
-	async init() {
-		// Register tools from external file (mcp_tools.ts)
-		registerTools(this.server);
+}));
+
+// Privy auth
+app.use('*', async (c, next) => {
+	const privyClient = initPrivyClient(c.env);
+	const token = c.req.header('Authorization')?.split(' ')[1];
+	if (!token) return c.text('Unauthorized', 401);
+	try {
+	  const verifiedClaims = await privyClient.verifyAuthToken(token);
+	} catch (error) {
+	  return c.text('Invalid token', 401);
 	}
-}
+	await next();
+});
 
 
-if (!useOAuth) {
-	app.post('/mcp', (c) => {
-		console.log("Not using OAuth");
+app.post('/mcp', (c) => {
 		return MCPrivy.serve("/mcp").fetch(c.req.raw, c.env, c.executionCtx);
-
-	});
-} else {
-	app.post('/mcp', (c) => {
-		console.log("Not using OAuth");
-		return c.text("Using OAuth", 404);
-	});
-}
-
-app.all('/mcp/*', (c) => {
-	return c.text("Good looks");
 });
 
-app.get('/mcp/*', (c) => {
-	return c.text("Good looks");
-});
+
+// app.get('/mcp', (c) => {
+// 	return MCPrivy.serve("/mcp").fetch(c.req.raw, c.env, c.executionCtx);
+// });
 
 export default app;
