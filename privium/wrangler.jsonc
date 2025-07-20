@@ -29,7 +29,7 @@
 	"kv_namespaces": [
 		{
 			"binding": "Privium_KV",
-			"id": "<Add-KV-ID>"
+			"id": "db41793ea0624525bc847feb741d8da9"
 		}
 	],
 	"ai": {

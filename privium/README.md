@@ -40,7 +40,7 @@ Update with this configuration:
       "command": "npx",
       "args": [
         "mcp-remote",
-        "http://localhost:8787/sse"  // or remote-mcp-server-authless.your-account.workers.dev/sse
+        process.env.WORKER_URL || "http://localhost:8787/mcp" // Set WORKER_URL in .env or .dev.vars
       ]
     }
   }
