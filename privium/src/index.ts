@@ -88,7 +88,6 @@ app.get('/.well-known/oauth-protected-resource', (c) => {
 // Authorization Endpoint (serve frontend)
 app.get('/authorize', async (c) => {
 	try {
-		console.log('🔵 FRONTEND: Serving authorization frontend...');
 		const url = new URL(c.req.url);
 		const indexRequest = new Request(url.origin + '/index.html');
 		const asset = await c.env.ASSETS.fetch(indexRequest);
@@ -118,7 +117,6 @@ app.get('/authorize', async (c) => {
 // Authorization Completion (Privy → OAuth Code)
 app.post('/complete-authorize', async (c) => {
 	try {
-		console.log('🔵 OAUTH: /complete-authorize endpoint called');
 		const body = await c.req.json();
 		console.log('🔵 OAUTH: Request body received:', { 
 			hasAccessToken: !!body.accessToken,
@@ -192,7 +190,6 @@ app.post('/complete-authorize', async (c) => {
 // Token Exchange (OAuth Code → Bearer Token)
 app.post('/token', async (c) => {
 	try {
-		console.log('🔵 TOKEN: /token endpoint called');
 		const authHeader = c.req.header('Authorization');
 		let clientId: string | null = null;
 		let clientSecret: string | null = null;
@@ -306,7 +303,6 @@ app.post('/token', async (c) => {
 // Client Registration (OAuth Dynamic Registration)
 app.post('/reg', async (c) => {
 	try {
-		console.log('🔵 REG: Client registration endpoint called');
 		const body = await c.req.json();
 		
 		// Validate required fields per RFC 7591
@@ -349,7 +345,6 @@ app.post('/reg', async (c) => {
 // Token Revocation / Logout
 app.post('/revoke', async (c) => {
 	try {
-		console.log('🔵 REVOKE: Token revocation endpoint called');
 		const body = await c.req.text();
 		const params = new URLSearchParams(body);
 		
@@ -393,8 +388,7 @@ app.post('/revoke', async (c) => {
 
 // Bearer token authentication middleware
 const requireAuth = async (c: any, next: any) => {
-	console.log('🔵 MCP: Request to /mcp endpoint');
-	
+
 	// Validate OAuth Bearer token
 	const authHeader = c.req.header('Authorization');
 	if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -446,7 +440,6 @@ app.get('/mcp', async (c) => {
 // MCP API with Bearer Token validation (POST requests)
 app.post('/mcp', requireAuth, async (c) => {
 	try {
-		console.log('🔵 MCP: Serving MCP request for user:', c.env.userId);
 		return MCPrivy.serve('/mcp').fetch(c.req.raw, c.env, {} as ExecutionContext);
 	} catch (error) {
 		console.error('🔴 MCP ERROR: Request failed:', error);
@@ -457,7 +450,6 @@ app.post('/mcp', requireAuth, async (c) => {
 // MCP API with Bearer Token validation (catch-all for other methods)
 app.all('/mcp/*', requireAuth, async (c) => {
 	try {
-		console.log('🔵 MCP: Serving MCP request for user:', c.env.userId);
 		return MCPrivy.serve('/mcp').fetch(c.req.raw, c.env, {} as ExecutionContext);
 	} catch (error) {
 		console.error('🔴 MCP ERROR: Request failed:', error);
