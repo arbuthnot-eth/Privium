@@ -173,6 +173,10 @@ function AuthorizeHandler({ authParams }: { authParams: { client_id: string | nu
         console.log('🔵 OAUTH: Received redirect response:', data);
         console.log('🔵 OAUTH: Redirecting to:', data.redirectTo);
         window.location.href = data.redirectTo;
+        // Close the window after redirect
+        setTimeout(() => {
+          window.close();
+        }, 1500);
       })
       .catch((err) => {
         console.error('🔴 OAUTH ERROR: Authorization error:', err);
