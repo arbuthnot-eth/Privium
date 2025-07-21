@@ -29,7 +29,6 @@ interface Env {
   AUTH_PRIVATE_KEY: string; // Use this PEM key for signing (SDK handles it)
   QUORUM_ID: string;
   MCP_OBJECT: DurableObjectNamespace<MCPrivy>;
-  Privium_KV: KVNamespace;
   OAUTH_KV: KVNamespace;
   ASSETS: Fetcher;
   VITE_FRONTEND_URL: string;
