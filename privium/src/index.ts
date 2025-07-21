@@ -7,7 +7,7 @@ import { cors } from 'hono/cors';
 
 // Define our MCP agent with version and register tools
 export class MCPrivy extends McpAgent {
-  server = new McpServer({ name: "Privium", version: "0.4.1" });
+  server = new McpServer({ name: "Privium", version: "0.8.1" });
   initialState = { sesh: null };
 
   async init() {
@@ -31,7 +31,6 @@ interface Env {
   MCP_OBJECT: DurableObjectNamespace<MCPrivy>;
   OAUTH_KV: KVNamespace;
   ASSETS: Fetcher;
-  VITE_FRONTEND_URL: string;
   userId?: string; // Extended dynamically for per-request user context
 }
 
