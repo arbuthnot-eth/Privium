@@ -7,7 +7,7 @@ import { cors } from 'hono/cors';
 
 // Define our MCP agent with version and register tools
 export class MCPrivy extends McpAgent {
-  server = new McpServer({ name: "Privium", version: "0.1.1" });
+  server = new McpServer({ name: "Privium", version: "0.4.1" });
   initialState = { sesh: null };
 
   async init() {
