@@ -27,11 +27,14 @@
 	  ]
 	},
 	"kv_namespaces": [
-	  {
-		"binding": "OAUTH_KV",
-		"id": "db41793ea0624525bc847feb741d8da9"
-	  }
-	],
+		{
+    	"binding": "OAUTH_KV",
+    	"id": "db41793ea0624525bc847feb741d8da9",
+      
+    	// Optional: preview_id used when running `wrangler dev` for local dev
+    	"preview_id": "a14be7632e1b45feb924910e434c594f"
+    	}
+  	],
 	"assets": {
 	  "directory": "../frontend-privium/dist/client", // Updated to point to dist/client
 	  "binding": "ASSETS",

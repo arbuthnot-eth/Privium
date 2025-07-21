@@ -1,74 +1,60 @@
 import { PrivyClient } from "@privy-io/server-auth";
 import { McpAgent } from "agents/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { randomUUID } from 'crypto';
 import { registerTools } from "./mcp_tools";
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
 // Define our MCP agent with version and register tools
 export class MCPrivy extends McpAgent {
-	server = new McpServer({ name: "Privium", version: "0.1.1" });
-	initialState = {sesh: null};
-	transport: StreamableHTTPServerTransport | undefined;
+  server = new McpServer({ name: "Privium", version: "0.1.1" });
+  initialState = { sesh: null };
 
-	async init() {
+  async init() {
+    // Register tools from external file (mcp_tools.ts)
+    registerTools(this.server);
 
-		// Register tools from external file (mcp_tools.ts)
-		registerTools(this.server);
-		
-		// Attach custom transport for specific sessions
-		const transport = new StreamableHTTPServerTransport({
-			sessionIdGenerator: () => randomUUID(),
-			onsessioninitialized: (sessionId) => {
-				// Integrate with McpAgent state for persistence
-				this.setState({sesh: sessionId});
-				// Assign the transport to the agent (since agent is per-session)
-				this.transport = transport;
-				// Log the session ID for debugging
-				console.log(`Session initialized with ID: ${sessionId}`);
-			},			
-		});
-
-		transport.onclose = () => {
-			console.log(`Session closed for ID: ${transport.sessionId}`);
-			this.setState({sesh: null});
-			this.transport = undefined;
-		};
-
-		// Connect the agent's McpServer to the transport
-		await this.server.connect(transport);
-	}
+    // Session management is handled by McpAgent.serve() internally
+    // Persist session ID to state if needed for tracking
+    // Note: StreamableHTTPServerTransport generates session IDs automatically
+    console.log('Agent initialized; session will be managed by StreamableHTTPServerTransport');
+    // Optionally access ctx for session info after serve() is called
+    // this.setState({ sesh: this.ctx?.sessionId || null }); // Uncomment if session tracking is needed
+  }
 }
 
 interface Env {
-	PRIVY_APP_ID: string;
-	PRIVY_APP_SECRET: string;
-	AUTH_PRIVATE_KEY: string; // Use this PEM key for signing (SDK handles it)
-	QUORUM_ID: string;
-	MCP_OBJECT: MCPrivy;
-	Privium_KV: KVNamespace;
-	OAUTH_KV: KVNamespace;
-	ASSETS: Fetcher;
-	VITE_FRONTEND_URL: string;
-	userId?: string; // Extended dynamically for per-request user context
+  PRIVY_APP_ID: string;
+  PRIVY_APP_SECRET: string;
+  AUTH_PRIVATE_KEY: string; // Use this PEM key for signing (SDK handles it)
+  QUORUM_ID: string;
+  MCP_OBJECT: DurableObjectNamespace<MCPrivy>;
+  Privium_KV: KVNamespace;
+  OAUTH_KV: KVNamespace;
+  ASSETS: Fetcher;
+  VITE_FRONTEND_URL: string;
+  userId?: string; // Extended dynamically for per-request user context
 }
 
 // Helper to initialize Privy client with walletApi config for automatic signing
 function initPrivyClient(env: Env): PrivyClient {
-	return new PrivyClient(env.PRIVY_APP_ID, env.PRIVY_APP_SECRET, {
-	  walletApi: {
-		authorizationPrivateKey: env.AUTH_PRIVATE_KEY,
-	  },
-	});
+  return new PrivyClient(env.PRIVY_APP_ID, env.PRIVY_APP_SECRET, {
+    walletApi: {
+      authorizationPrivateKey: env.AUTH_PRIVATE_KEY,
+    },
+  });
 }
 
 // Create Hono app
 const app = new Hono<{ Bindings: Env }>();
 
 // Add CORS middleware
-app.use('/*', cors());
+app.use('/*', cors({
+  origin: '*', // Adjust for production to specific origins
+  allowMethods: ['GET', 'POST', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization', 'mcp-session-id'],
+  exposeHeaders: ['mcp-session-id'],
+}));
 
 // OAuth Discovery Endpoints
 app.get('/.well-known/oauth-authorization-server', (c) => {
