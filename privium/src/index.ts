@@ -7,7 +7,7 @@ import { cors } from 'hono/cors';
 
 // Define our MCP agent with version and register tools
 export class MCPrivy extends McpAgent {
-  server = new McpServer({ name: "Privium", version: "0.8.1" });
+  server = new McpServer({ name: "Privium", version: "0.8.3" });
   initialState = { sesh: null };
 
   async init() {
@@ -277,7 +277,7 @@ app.post('/token', async (c) => {
 			createdAt: Date.now(),
 		};
 		
-		await c.env.OAUTH_KV.put(`access_token:${accessToken}`, JSON.stringify(tokenData), { expirationTtl: 3600 });
+		await c.env.OAUTH_KV.put(`access_token:${accessToken}`, JSON.stringify(tokenData), { expirationTtl: 36000 });
 		console.log('🔵 TOKEN: Access token stored in KV');
 
 		// Clean up authorization code
