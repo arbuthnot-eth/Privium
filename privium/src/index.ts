@@ -206,22 +206,45 @@ app.post('/complete-authorize', async (c) => {
 app.post('/token', async (c) => {
 	try {
 		console.log('🔵 TOKEN: /token endpoint called');
+		const authHeader = c.req.header('Authorization');
+		let clientId: string | null = null;
+		let clientSecret: string | null = null;
+
+		if (authHeader && authHeader.startsWith('Basic ')) {
+			const encoded = authHeader.substring(6);
+			const decoded = atob(encoded);
+			const [basicClientId, basicClientSecret] = decoded.split(':');
+			clientId = basicClientId;
+			clientSecret = basicClientSecret;
+			console.log('🔵 TOKEN: Basic Auth client_id:', clientId);
+		}
+
 		const body = await c.req.text();
 		const params = new URLSearchParams(body);
 		
 		const grantType = params.get('grant_type');
 		const code = params.get('code');
-		const clientId = params.get('client_id');
 		const codeVerifier = params.get('code_verifier');
 		const redirectUri = params.get('redirect_uri');
 
-		console.log('🔵 TOKEN: Exchange request:', { grantType, code, clientId, hasCodeVerifier: !!codeVerifier });
+		// If client_id was not in Basic Auth, try to get it from the body
+		if (!clientId) {
+			clientId = params.get('client_id');
+		}
+		// If client_secret was not in Basic Auth, try to get it from the body
+		if (!clientSecret) {
+			clientSecret = params.get('client_secret');
+		}
+
+		console.log('🔵 TOKEN: Exchange request:', { grantType, code, clientId, hasCodeVerifier: !!codeVerifier, hasClientSecret: !!clientSecret });
 
 		if (grantType !== 'authorization_code') {
+			console.error('🔴 TOKEN ERROR: Unsupported grant type:', grantType);
 			return c.json({ error: 'unsupported_grant_type' }, 400);
 		}
 
 		if (!code || !clientId || !codeVerifier) {
+			console.error('🔴 TOKEN ERROR: Missing required parameters (code, clientId, codeVerifier)');
 			return c.json({ error: 'invalid_request' }, 400);
 		}
 
