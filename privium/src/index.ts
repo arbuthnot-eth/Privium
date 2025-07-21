@@ -154,6 +154,7 @@ app.post('/complete-authorize', async (c) => {
 		try {
 			verifiedClaims = await privyClient.verifyAuthToken(token);
 			console.log('🔵 OAUTH: Token verified for user:', verifiedClaims.userId);
+			console.log(verifiedClaims);
 		} catch (error) {
 			console.error('🔴 OAUTH ERROR: Token verification failed:', error);
 			return c.json({ 
@@ -441,13 +442,13 @@ app.get('/mcp', async (c) => {
 	const url = new URL(c.req.url);
 	return c.json({
 		name: "Privium MCP Server",
-		version: "0.1.1",
+		version: "0.3.1",
 		status: "running",
 		protocol: "Model Context Protocol",
 		authentication_required: true,
 		authorization_endpoint: `${url.origin}/authorize`,
 		resource_metadata: `${url.origin}/.well-known/oauth-protected-resource`,
-		documentation: "https://github.com/your-repo/privium",
+		documentation: "https://github.com/arbuthnot-eth/privium",
 		endpoints: {
 			mcp: `${url.origin}/mcp (POST only)`,
 			authorize: `${url.origin}/authorize`,
