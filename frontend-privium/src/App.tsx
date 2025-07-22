@@ -416,7 +416,7 @@ export default function App() {
         response_type: params.get('response_type'),
         code_challenge: params.get('code_challenge'),
         code_challenge_method: params.get('code_challenge_method'),
-        resource: params.get('resource') || 'http://localhost:8787/mcp', // Ensure resource is always set
+        resource: params.get('resource') || window.location.origin + '/mcp', // Ensure resource is always set
       });
     }
   }, []);
