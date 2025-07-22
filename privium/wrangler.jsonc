@@ -6,7 +6,7 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "privium",
 	"main": "src/index.ts",
-	"compatibility_date": "2025-07-16",
+	"compatibility_date": "2025-07-22",
 	"compatibility_flags": [
 	  "nodejs_compat"
 	],

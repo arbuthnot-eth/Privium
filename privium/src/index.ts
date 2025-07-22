@@ -228,7 +228,7 @@ app.post('/complete-authorize', async (c) => {
 
 		// Generate authorization code
 		const authCode = crypto.randomUUID();
-		console.log('🔵 OAUTH: Generated auth code:', authCode);
+
 		
 		// Store the authorization details in KV for later token exchange
 		const authData = {
@@ -511,11 +511,12 @@ app.post('/reg', async (c) => {
 		client_id_issued_at: Math.floor(Date.now() / 1000)
 	  };
 	  
-	  console.log('🔵 REG: Encrypting and storing client data...');
+
 	  const { encryptedData: encClientData, iv: clientIv, key: clientKey } = await encryptProps(clientData);
 	  const wrappedClientKey = await wrapKeyWithToken(clientId, clientKey);
 	  const encryptedClientData = { encryptedData: encClientData, iv: clientIv, wrappedKey: wrappedClientKey };
 	  await c.env.OAUTH_KV.put(`client:${clientId}`, JSON.stringify(encryptedClientData));
+	  console.log('🔵 REG: Successfully stored encrypted client data in KV');
 	  return c.json({...clientData, client_secret: clientSecret});
 	} catch (error) {
 	  return c.json({error: 'server_error'}, 500);

@@ -250,19 +250,6 @@ export function registerTools(agent: any) {
 		}
 	);
 
-
-	server.registerTool(
-		"list_tools",
-		{
-			title: "List Tools",
-			description: "Gets the title and description of all available tools",
-			inputSchema: {},
-		},
-		async () => {
-			return { content: [{ type: "text", text: JSON.stringify(toolList, null, 2) }] };
-		}
-	);
-
 	server.registerTool(
 		"list_resources", 
 		{
