@@ -377,7 +377,7 @@ app.post('/token', async (c) => {
 			return c.json({
 				access_token: newAccessToken,
 				token_type: 'Bearer',
-				expires_in: 3600,
+				expires_in: 36000,
 				refresh_token: newRefreshToken,
 				scope: refreshData.scope,
 			});
@@ -453,7 +453,7 @@ app.post('/token', async (c) => {
 		const { encryptedData: encAccessData, iv: accessIv, key: accessKey } = await encryptProps(tokenData);
 		const wrappedAccessKey = await wrapKeyWithToken(accessToken, accessKey);
 		const encryptedTokenData = { encryptedData: encAccessData, iv: accessIv, wrappedKey: wrappedAccessKey };
-		await c.env.OAUTH_KV.put(`access_token:${await hashSecret(accessToken)}`, JSON.stringify(encryptedTokenData), { expirationTtl: 3600 });
+		await c.env.OAUTH_KV.put(`access_token:${await hashSecret(accessToken)}`, JSON.stringify(encryptedTokenData), { expirationTtl: 36000 });
 		console.log('🔵 TOKEN: Encrypted Access and Identity tokens stored in KV');
 
 		// Generate refresh token
@@ -478,7 +478,7 @@ app.post('/token', async (c) => {
 		return c.json({
 			access_token: accessToken,
 			token_type: 'Bearer',
-			expires_in: 3600,
+			expires_in: 36000,
 			refresh_token: newRefreshToken,
 			scope: authData.scope,
 		});
