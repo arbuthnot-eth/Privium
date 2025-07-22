@@ -10,7 +10,7 @@ export function initPrivyClient(env: any): PrivyClient {
   });
 }
 
-export function registerTools(agent: any, privyClient: PrivyClient) {
+export function registerTools(agent: any) {
 	const server = agent.server;
 	const toolList: { name: string; title: string; description: string }[] = [];
 	// Simple addition tool
@@ -118,14 +118,28 @@ export function registerTools(agent: any, privyClient: PrivyClient) {
 			title: "User Information",
 			description: "Fetches the current user's Privy profile information"
 		},
-		async () => {
-			const user = await privyClient.getUserById(agent.env.userId);
-			return {
-				contents: [{
-					uri: "user://" + agent.env.userId,
-					mimeType: "application/json",
-					text: JSON.stringify(user, null, 2)
-				}]
+		async (uri: URL, extra: any) => {
+			try {
+				if (!agent.env.privyUser) {
+					throw new Error("User context not available");
+				}
+				// Use the already-stored Privy user data
+				const user = agent.env.privyUser;
+				return {
+					contents: [{
+						uri: "user://" + user.id,
+						mimeType: "application/json",
+						text: JSON.stringify(user, null, 2)
+					}]
+				};
+			} catch (error) {
+				return {
+					contents: [{
+						uri: uri.href,
+						mimeType: "application/json",
+						text: JSON.stringify({ error: "Failed to fetch user information" })
+					}]
+				};
 			}
 		}
 	);
@@ -140,9 +154,13 @@ export function registerTools(agent: any, privyClient: PrivyClient) {
 		},
 		async (uri: URL, extra: any) => {
 			try {
-				const user = await privyClient.getUserById(agent.id.name());
+				if (!agent.env.privyUser) {
+					throw new Error("User context not available");
+				}
+				// Use the already-stored Privy user data
+				const user = agent.env.privyUser;
 				const wallets = user.linkedAccounts.filter(
-					(account) => account.type === 'wallet'
+					(account: any) => account.type === 'wallet'
 				);
 				return {
 					contents: [{

@@ -4,36 +4,113 @@ import { registerTools, initPrivyClient } from "./mcp_tools";
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
-// MCP Server Name and Version
+// Add crypto helpers
+async function hashSecret(secret: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(secret);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function encryptProps(data: any): Promise<{ encryptedData: string; iv: string; key: CryptoKey }> {
+  const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']) as CryptoKey;
+  const iv = crypto.getRandomValues(new Uint8Array(12)); // Generate random IV for security
+  const jsonData = JSON.stringify(data);
+  const encoder = new TextEncoder();
+  const encodedData = encoder.encode(jsonData);
+  const encryptedBuffer = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encodedData);
+  return {
+    encryptedData: arrayBufferToBase64(encryptedBuffer),
+    iv: arrayBufferToBase64(iv),
+    key,
+  };
+}
+
+async function decryptProps(encryptedData: string, iv: string, key: CryptoKey): Promise<any> {
+  const encryptedBuffer = base64ToArrayBuffer(encryptedData);
+  const ivBuffer = base64ToArrayBuffer(iv);
+  const decryptedBuffer = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: ivBuffer }, key, encryptedBuffer);
+  const decoder = new TextDecoder();
+  const jsonData = decoder.decode(decryptedBuffer);
+  return JSON.parse(jsonData);
+}
+
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+  const binaryString = atob(base64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+}
+
+async function wrapKeyWithToken(tokenStr: string, keyToWrap: CryptoKey): Promise<string> {
+  const wrappingKey = await deriveKeyFromToken(tokenStr);
+  const wrappedKeyBuffer = await crypto.subtle.wrapKey('raw', keyToWrap, wrappingKey, { name: 'AES-KW' });
+  return arrayBufferToBase64(wrappedKeyBuffer);
+}
+
+async function deriveKeyFromToken(tokenStr: string): Promise<CryptoKey> {
+  const encoder = new TextEncoder();
+  // Use a derived static key from the token string itself for key wrapping
+  // In production, you might want to use an environment variable as additional salt
+  const salt = encoder.encode('privium-mcp-kdf-salt-v1');
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(tokenStr),
+    { name: 'PBKDF2' },
+    false,
+    ['deriveKey']
+  );
+  return await crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt: salt,
+      iterations: 100000,
+      hash: 'SHA-256'
+    },
+    keyMaterial,
+    { name: 'AES-KW', length: 256 },
+    false,
+    ['wrapKey', 'unwrapKey']
+  );
+}
+
 const SERVER_NAME = "Privium";
 const SERVER_VERSION = "0.9.3";
 
 // Define our MCP agent with version and register tools
-export class MCPrivy extends McpAgent<Env, DurableObjectState, {}> { // Add generic types
+export class MCPrivy extends McpAgent<Env, DurableObjectState, {}> {
   server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
+  
 
   async init() {
     // Register tools from external file (mcp_tools.ts)
-    registerTools(this, initPrivyClient(this.env));
+    registerTools(this);
 
     // Session management is handled by McpAgent.serve() internally
     // Persist session ID to state if needed for tracking
     // Note: StreamableHTTPServerTransport generates session IDs automatically
-    console.log('Agent initialized; session will be managed by StreamableHTTPServerTransport');
+    console.log('🔵 Agent: Initialized');
     // Optionally access ctx for session info after serve() is called
     // this.setState({ sesh: this.ctx?.sessionId || null }); // Uncomment if session tracking is needed
   }
 }
 
 interface Env {
-	PRIVY_APP_ID: string;
-	PRIVY_APP_SECRET: string;
-	AUTH_PRIVATE_KEY: string; // Use this PEM key for signing (SDK handles it)
-	QUORUM_ID: string;
-	MCP_OBJECT: DurableObjectNamespace<MCPrivy>;
-	OAUTH_KV: KVNamespace;
-	ASSETS: Fetcher;
-	privyUser?: any; // Store full Privy user object for per-request context
+  PRIVY_APP_ID: string;
+  PRIVY_APP_SECRET: string;
+  AUTH_PRIVATE_KEY: string; // Use this PEM key for signing (SDK handles it)
+  QUORUM_ID: string;
+  MCP_OBJECT: DurableObjectNamespace<MCPrivy>;
+  OAUTH_KV: KVNamespace;
+  ASSETS: Fetcher;
+  privyUser?: any;
 }
 
 
@@ -110,18 +187,17 @@ app.get('/authorize', async (c) => {
 app.post('/complete-authorize', async (c) => {
 	try {
 		const body = await c.req.json();
-		console.log('🔵 OAUTH: Request body received:', {
+		console.log('🔵 OAUTH: Request body received:', { 
 			hasAccessToken: !!body.accessToken,
-			hasIdToken: !!body.idToken, // Log presence of idToken
+			hasIdToken: !!body.idToken,
 			client_id: body.client_id,
 			redirect_uri: body.redirect_uri,
 			code_challenge: body.code_challenge ? 'present' : 'missing'
 		});
 		
-		const accessToken = body.accessToken;
-		const idToken = body.idToken; // Get identity token from body
-		
-		if (!accessToken) {
+		const token = body.accessToken;
+		const idToken = body.idToken;
+		if (!token) {
 			console.error('🔴 OAUTH ERROR: Missing access token');
 			return c.text('Missing access token', 401);
 		}
@@ -130,8 +206,6 @@ app.post('/complete-authorize', async (c) => {
 			console.error('🔴 OAUTH ERROR: Missing identity token');
 			return c.text('Missing identity token', 401);
 		}
-
-		console.log('🔵 OAUTH: Verifying Privy token...');
 		
 		let verifiedClaims;
 		let privyUser;
@@ -139,16 +213,16 @@ app.post('/complete-authorize', async (c) => {
 			const privyClient = initPrivyClient(c.env); // Initialize privyClient here
 			
 			// Verify and parse the identity token to get full user data
-			verifiedClaims = await privyClient.verifyAuthToken(accessToken);
+			verifiedClaims = await privyClient.verifyAuthToken(token);
 			privyUser = await privyClient.getUser({ idToken });
-			console.log('🔵 OAUTH: Identity and access tokens verified for user:', privyUser.id);
-			console.log('🔵 OAUTH: Privy User Data:', privyUser);
+			console.log('🔵 OAUTH: Privy Identity and Access tokens verified for user:', privyUser.id);
+			console.log('🔵 OAUTH: User Data:', privyUser);
 
 		} catch (error) {
 			console.error('🔴 OAUTH ERROR: Token verification failed:', error);
-			return c.json({
-				error: 'Invalid token',
-				details: error instanceof Error ? error.message : String(error)
+			return c.json({ 
+				error: 'Invalid token', 
+				details: error instanceof Error ? error.message : String(error) 
 			}, 401);
 		}
 
@@ -158,19 +232,21 @@ app.post('/complete-authorize', async (c) => {
 		
 		// Store the authorization details in KV for later token exchange
 		const authData = {
-			userId: verifiedClaims.userId,
+			userId: privyUser.id, // Use the Privy user ID for consistency
 			privyUser: privyUser, // Store the full Privy user object
 			clientId: body.client_id,
 			redirectUri: body.redirect_uri,
 			scope: body.scope || 'mcp',
 			codeChallenge: body.code_challenge,
 			codeChallengeMethod: body.code_challenge_method,
-			resource: body.resource, // Add resource parameter
 			createdAt: Date.now(),
 		};
 		
-		await c.env.OAUTH_KV.put(`auth_code:${authCode}`, JSON.stringify(authData), { expirationTtl: 600 });
-		console.log('🔵 OAUTH: Successfully stored auth data in KV');
+		const { encryptedData, iv, key } = await encryptProps(authData);
+		const wrappedKey = await wrapKeyWithToken(authCode, key);
+		const encryptedAuthData = { encryptedData, iv, wrappedKey };
+		await c.env.OAUTH_KV.put(`auth_code:${authCode}`, JSON.stringify(encryptedAuthData), { expirationTtl: 600 });
+		console.log('🔵 OAUTH: Successfully stored encrypted auth data in KV');
 
 		// Build redirect URL
 		const redirectUrl = new URL(body.redirect_uri);
@@ -192,7 +268,7 @@ app.post('/complete-authorize', async (c) => {
 	}
 });
 
-// Token Exchange (OAuth Code → Bearer Token)
+// Token Exchange (OAuth Code → Bearer Token + Refresh Token)
 app.post('/token', async (c) => {
 	try {
 		const authHeader = c.req.header('Authorization');
@@ -215,7 +291,7 @@ app.post('/token', async (c) => {
 		const code = params.get('code');
 		const codeVerifier = params.get('code_verifier');
 		const redirectUri = params.get('redirect_uri');
-		const resource = params.get('resource') || 'http://localhost:8787/mcp'; // Default to MCP server URI if not provided
+		const refreshToken = params.get('refresh_token');
 
 		// If client_id was not in Basic Auth, try to get it from the body
 		if (!clientId) {
@@ -226,8 +302,88 @@ app.post('/token', async (c) => {
 			clientSecret = params.get('client_secret');
 		}
 
-		console.log('🔵 TOKEN: Exchange request:', { grantType, code, clientId, hasCodeVerifier: !!codeVerifier, hasClientSecret: !!clientSecret });
+		console.log('🔵 TOKEN: Exchange request:', { grantType, code, refreshToken, clientId, hasCodeVerifier: !!codeVerifier, hasClientSecret: !!clientSecret });
 
+		// Handle refresh_token grant type
+		if (grantType === 'refresh_token') {
+			if (!refreshToken) {
+				console.error('🔴 TOKEN ERROR: Missing refresh_token');
+				return c.json({ error: 'invalid_request' }, 400);
+			}
+
+			console.log('🔵 TOKEN: Refresh token request...');
+			const refreshDataStr = await c.env.OAUTH_KV.get(`refresh_token:${await hashSecret(refreshToken)}`);
+			if (!refreshDataStr) {
+				console.error('🔴 TOKEN ERROR: Invalid or expired refresh token');
+				return c.json({ error: 'invalid_grant' }, 400);
+			}
+
+			const encryptedRefreshData = JSON.parse(refreshDataStr);
+			const unwrappedRefreshKey = await crypto.subtle.unwrapKey(
+				'raw',
+				base64ToArrayBuffer(encryptedRefreshData.wrappedKey),
+				await deriveKeyFromToken(refreshToken),
+				{ name: 'AES-KW' },
+				{ name: 'AES-GCM' },
+				false,
+				['decrypt']
+			);
+			const refreshData = await decryptProps(encryptedRefreshData.encryptedData, encryptedRefreshData.iv, unwrappedRefreshKey);
+			console.log('🔵 TOKEN: Decrypted refresh data retrieved for user:', refreshData.userId);
+
+			// Generate new access token
+			const newAccessToken = crypto.randomUUID();
+			console.log('🔵 TOKEN: Generated new access token');
+
+			// Generate new refresh token (rotation)
+			const newRefreshToken = crypto.randomUUID();
+			console.log('🔵 TOKEN: Generated new refresh token');
+
+			// Store new encrypted access token
+			const tokenData = {
+				userId: refreshData.userId,
+				privyUser: refreshData.privyUser,
+				clientId: refreshData.clientId,
+				scope: refreshData.scope,
+				createdAt: Date.now(),
+			};
+
+			const { encryptedData: newEncAccessData, iv: newAccessIv, key: newAccessKey } = await encryptProps(tokenData);
+			const newWrappedAccessKey = await wrapKeyWithToken(newAccessToken, newAccessKey);
+			const newEncryptedTokenData = { encryptedData: newEncAccessData, iv: newAccessIv, wrappedKey: newWrappedAccessKey };
+			await c.env.OAUTH_KV.put(`access_token:${await hashSecret(newAccessToken)}`, JSON.stringify(newEncryptedTokenData), { expirationTtl: 36000 });
+			console.log('🔵 TOKEN: Encrypted access token (new) stored');
+
+			// Store new encrypted refresh token
+			const newRefreshData = {
+				userId: refreshData.userId,
+				privyUser: refreshData.privyUser,
+				clientId: refreshData.clientId,
+				scope: refreshData.scope,
+				previousRefreshToken: await hashSecret(refreshToken),
+				createdAt: Date.now(),
+			};
+
+			const { encryptedData: newEncRefreshData, iv: newRefreshIv, key: newRefreshKey } = await encryptProps(newRefreshData);
+			const newWrappedRefreshKey = await wrapKeyWithToken(newRefreshToken, newRefreshKey);
+			const newEncryptedRefreshData = { encryptedData: newEncRefreshData, iv: newRefreshIv, wrappedKey: newWrappedRefreshKey };
+			await c.env.OAUTH_KV.put(`refresh_token:${await hashSecret(newRefreshToken)}`, JSON.stringify(newEncryptedRefreshData));
+			console.log('🔵 TOKEN: Encrypted refresh token (new) stored');
+
+			// Invalidate old refresh token after successful rotation
+			await c.env.OAUTH_KV.delete(`refresh_token:${await hashSecret(refreshToken)}`);
+			console.log('🔵 TOKEN: Old refresh token invalidated');
+
+			return c.json({
+				access_token: newAccessToken,
+				token_type: 'Bearer',
+				expires_in: 3600,
+				refresh_token: newRefreshToken,
+				scope: refreshData.scope,
+			});
+		}
+
+		// Handle authorization_code grant type
 		if (grantType !== 'authorization_code') {
 			console.error('🔴 TOKEN ERROR: Unsupported grant type:', grantType);
 			return c.json({ error: 'unsupported_grant_type', error_description: 'The authorization grant type is not supported by the authorization server.' }, 400);
@@ -242,11 +398,21 @@ app.post('/token', async (c) => {
 		const authDataStr = await c.env.OAUTH_KV.get(`auth_code:${code}`);
 		if (!authDataStr) {
 			console.error('🔴 TOKEN ERROR: Invalid or expired authorization code');
-			return c.json({ error: 'invalid_grant', error_description: 'Invalid or expired authorization code.' }, 400);
+			return c.json({ error: 'invalid_grant' }, 400);
 		}
 
-		const authData = JSON.parse(authDataStr);
-		console.log('🔵 TOKEN: Auth data retrieved from KV (user:', authData.userId,')');
+		const encryptedAuthData = JSON.parse(authDataStr);
+		const unwrappedKey = await crypto.subtle.unwrapKey(
+			'raw',
+			base64ToArrayBuffer(encryptedAuthData.wrappedKey),
+			await deriveKeyFromToken(code),
+			{ name: 'AES-KW' },
+			{ name: 'AES-GCM' },
+			false,
+			['decrypt']
+		);
+		const authData = await decryptProps(encryptedAuthData.encryptedData, encryptedAuthData.iv, unwrappedKey);
+		console.log('🔵 TOKEN: Successfully decrypted auth data for User:', authData.userId);
 
 		// Validate PKCE
 		if (authData.codeChallenge && authData.codeChallengeMethod === 'S256') {
@@ -262,7 +428,7 @@ app.post('/token', async (c) => {
 				console.error('🔴 TOKEN ERROR: PKCE validation failed');
 				return c.json({ error: 'invalid_grant', error_description: 'PKCE validation failed.' }, 400);
 			}
-			console.log('🔵 TOKEN: PKCE validation successful');
+			console.log('🔵 TOKEN: Successfully validated PKCE');
 		}
 
 		// Validate client and redirect URI
@@ -281,12 +447,30 @@ app.post('/token', async (c) => {
 			privyUser: authData.privyUser,
 			clientId: authData.clientId,
 			scope: authData.scope,
-			resource: resource, // Store resource with token
 			createdAt: Date.now(),
 		};
 		
-		await c.env.OAUTH_KV.put(`access_token:${accessToken}`, JSON.stringify(tokenData), { expirationTtl: 36000 });
-		console.log('🔵 TOKEN: Access and Identity tokens stored in KV');
+		const { encryptedData: encAccessData, iv: accessIv, key: accessKey } = await encryptProps(tokenData);
+		const wrappedAccessKey = await wrapKeyWithToken(accessToken, accessKey);
+		const encryptedTokenData = { encryptedData: encAccessData, iv: accessIv, wrappedKey: wrappedAccessKey };
+		await c.env.OAUTH_KV.put(`access_token:${await hashSecret(accessToken)}`, JSON.stringify(encryptedTokenData), { expirationTtl: 3600 });
+		console.log('🔵 TOKEN: Encrypted Access and Identity tokens stored in KV');
+
+		// Generate refresh token
+		const newRefreshToken = crypto.randomUUID();
+		const refreshData = {
+			userId: authData.userId,
+			privyUser: authData.privyUser,
+			clientId: authData.clientId,
+			scope: authData.scope,
+			createdAt: Date.now(),
+		};
+		
+		const { encryptedData: encRefreshData, iv: refreshIv, key: refreshKey } = await encryptProps(refreshData);
+		const wrappedRefreshKey = await wrapKeyWithToken(newRefreshToken, refreshKey);
+		const encryptedRefreshData = { encryptedData: encRefreshData, iv: refreshIv, wrappedKey: wrappedRefreshKey };
+		await c.env.OAUTH_KV.put(`refresh_token:${await hashSecret(newRefreshToken)}`, JSON.stringify(encryptedRefreshData));
+		console.log('🔵 TOKEN: Encrypted refresh token stored in KV');
 
 		// Clean up authorization code
 		await c.env.OAUTH_KV.delete(`auth_code:${code}`);
@@ -295,12 +479,13 @@ app.post('/token', async (c) => {
 			access_token: accessToken,
 			token_type: 'Bearer',
 			expires_in: 3600,
+			refresh_token: newRefreshToken,
 			scope: authData.scope,
 		});
 	} catch (error) {
 		console.error('🔴 TOKEN ERROR: Token exchange failed:', error);
-		return c.json({
-			error: 'server_error',
+		return c.json({ 
+			error: 'server_error', 
 			error_description: `An unexpected error occurred: ${error instanceof Error ? error.message : String(error)}`
 		}, 500);
 	}
@@ -309,80 +494,51 @@ app.post('/token', async (c) => {
 // Client Registration (OAuth Dynamic Registration)
 app.post('/reg', async (c) => {
 	try {
-		const body = await c.req.json();
+	  const body = await c.req.json();
 		
 		// Validate required fields per RFC 7591
-		if (!body.redirect_uris || !Array.isArray(body.redirect_uris)) {
+		if (!body.redirect_uris || !Array.isArray(body.redirect_uris) || body.redirect_uris.length === 0) {
 			console.error('🔴 REG ERROR: Missing or invalid redirect_uris');
 			return c.json({ error: 'invalid_client_metadata' }, 400);
-		}
-
-		const clientId = crypto.randomUUID();
-		const clientSecret = crypto.randomUUID();
-		
-		console.log('🔵 REG: Generated client:', { clientId, hasSecret: !!clientSecret });
-
-		// Store client metadata in KV
-		const clientData = {
-			...body,
-			client_id: clientId,
-			client_secret: clientSecret,
-			client_id_issued_at: Math.floor(Date.now() / 1000),
-		};
-
-		await c.env.OAUTH_KV.put(`client:${clientId}`, JSON.stringify(clientData));
-		console.log('🔵 REG: Successfully registered client');
-
-		return c.json({
-			client_id: clientId,
-			client_secret: clientSecret,
-			client_id_issued_at: Math.floor(Date.now() / 1000),
-			...body,
-		});
+	  }
+	  const clientId = crypto.randomUUID();
+	  const clientSecret = crypto.randomUUID();
+	  const hashedSecret = await hashSecret(clientSecret);
+	  const clientData = {
+		...body,
+		client_id: clientId,
+		client_secret: hashedSecret,
+		client_id_issued_at: Math.floor(Date.now() / 1000)
+	  };
+	  
+	  console.log('🔵 REG: Encrypting and storing client data...');
+	  const { encryptedData: encClientData, iv: clientIv, key: clientKey } = await encryptProps(clientData);
+	  const wrappedClientKey = await wrapKeyWithToken(clientId, clientKey);
+	  const encryptedClientData = { encryptedData: encClientData, iv: clientIv, wrappedKey: wrappedClientKey };
+	  await c.env.OAUTH_KV.put(`client:${clientId}`, JSON.stringify(encryptedClientData));
+	  return c.json({...clientData, client_secret: clientSecret});
 	} catch (error) {
-		console.error('🔴 REG ERROR: Client registration failed:', error);
-		return c.json({ 
-			error: 'server_error', 
-			details: error instanceof Error ? error.message : String(error) 
-		}, 500);
+	  return c.json({error: 'server_error'}, 500);
 	}
-});
-
+  });
+  
 // Token Revocation / Logout
-app.post('/revoke', async (c) => {
+  app.post('/revoke', async (c) => {
 	try {
 		const body = await c.req.text();
 		const params = new URLSearchParams(body);
-		
 		const token = params.get('token');
-		const tokenTypeHint = params.get('token_type_hint');
 		
 		if (!token) {
-			console.error('🔴 REVOKE ERROR: Missing token parameter');
 			return c.json({ error: 'invalid_request' }, 400);
 		}
-
-		console.log('🔵 REVOKE: Revoking token:', { tokenHint: tokenTypeHint });
-
-		// Try to revoke as access token
-		const accessTokenKey = `access_token:${token}`;
-		const accessTokenData = await c.env.OAUTH_KV.get(accessTokenKey);
-		if (accessTokenData) {
-			await c.env.OAUTH_KV.delete(accessTokenKey);
-			console.log('🔵 REVOKE: Successfully revoked access token');
-		}
-
-		// Try to revoke as auth code (just in case)
-		const authCodeKey = `auth_code:${token}`;
-		const authCodeData = await c.env.OAUTH_KV.get(authCodeKey);
-		if (authCodeData) {
-			await c.env.OAUTH_KV.delete(authCodeKey);
-			console.log('🔵 REVOKE: Successfully revoked auth code');
-		}
-
-		// Per RFC 7009, return 200 OK even if token wasn't found
-		console.log('🔵 REVOKE: Token revocation completed');
-		return c.text('', 200);
+		
+		const hashedToken = await hashSecret(token);
+		await c.env.OAUTH_KV.delete(`access_token:${hashedToken}`);
+		await c.env.OAUTH_KV.delete(`refresh_token:${hashedToken}`);
+		await c.env.OAUTH_KV.delete(`auth_code:${hashedToken}`);
+		
+		return c.json({});
 	} catch (error) {
 		console.error('🔴 REVOKE ERROR: Token revocation failed:', error);
 		return c.json({ 
@@ -390,11 +546,10 @@ app.post('/revoke', async (c) => {
 			details: error instanceof Error ? error.message : String(error) 
 		}, 500);
 	}
-});
+  });
 
 // Bearer token authentication middleware
 const requireAuth = async (c: any, next: any) => {
-
 	// Validate OAuth Bearer token
 	const authHeader = c.req.header('Authorization');
 	if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -406,37 +561,35 @@ const requireAuth = async (c: any, next: any) => {
 	}
 
 	const token = authHeader.substring(7); // Remove "Bearer " prefix
+	
+	// Hash token for lookup
+	const hashedToken = await hashSecret(token);
 
 	// Retrieve token data from KV
-	const tokenDataStr = await c.env.OAUTH_KV.get(`access_token:${token}`);
+	const tokenDataStr = await c.env.OAUTH_KV.get(`access_token:${hashedToken}`);
 	if (!tokenDataStr) {
 		console.error('🔴 MCP ERROR: Invalid or expired access token');
-		const url = new URL(c.req.url);
-		const resourceMetadataUrl = `${url.origin}/.well-known/oauth-protected-resource`;
-		c.header('WWW-Authenticate', `Bearer realm="mcp", resource_metadata="${resourceMetadataUrl}"`);
-		return c.json({ error: 'invalid_token', error_description: 'Missing or invalid Authorization header.' }, 401);
+		c.header('WWW-Authenticate', 'Bearer realm="mcp"');
+		return c.text('Unauthorized', 401);
 	}
 
-	const tokenData = JSON.parse(tokenDataStr);
-	console.log('🔵 MCP: Token validated for user:', tokenData.userId);
 
-	// Validate token audience (resource)
-	const currentResourceUri = `${new URL(c.req.url).origin}/mcp`; // Canonical URI of this MCP server
-	if (tokenData.resource !== currentResourceUri) {
-		console.error('🔴 MCP ERROR: Token audience mismatch. Expected:', currentResourceUri, 'Received:', tokenData.resource);
-		c.header('WWW-Authenticate', `Bearer realm="mcp", resource_metadata="${currentResourceUri}"`);
-		return c.json({ error: 'invalid_token', error_description: 'Token was not issued for this resource.' }, 401);
-	}
+	const encryptedTokenData = JSON.parse(tokenDataStr);
+	const unwrappedTokenKey = await crypto.subtle.unwrapKey(
+		'raw',
+		base64ToArrayBuffer(encryptedTokenData.wrappedKey),
+		await deriveKeyFromToken(token),
+		{ name: 'AES-KW' },
+		{ name: 'AES-GCM' },
+		false,
+		['decrypt']
+	);
+	const tokenData = await decryptProps(encryptedTokenData.encryptedData, encryptedTokenData.iv, unwrappedTokenKey);
+	console.log('🔵 MCP: Successfully validated decrypted token for user:', tokenData.privyUser.id);
 
-	// Check for required scopes (e.g., 'mcp')
-	if (!tokenData.scope || !tokenData.scope.includes('mcp')) {
-		console.error('🔴 MCP ERROR: Insufficient scope. Token scope:', tokenData.scope);
-		return c.json({ error: 'insufficient_scope', error_description: 'The access token does not have the required scope for this resource.' }, 403);
-	}
-	console.log('🔵 MCP: Successfully validated Token audience and Scope.');
 	// Set user context
 	c.env.privyUser = tokenData.privyUser;
-
+	
 	await next();
 };
 
@@ -480,5 +633,13 @@ app.all('/mcp/*', requireAuth, async (c) => {
 	}
 });
 
+// Serve static assets (fallback for other requests)
+app.get('*', async (c) => {
+	try {
+		return c.env.ASSETS.fetch(c.req.raw);
+	} catch (error) {
+		return c.text('Not Found', 404);
+	}
+});
 
 export default app;

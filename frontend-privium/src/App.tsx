@@ -55,9 +55,7 @@ function CopyToClipboardButton({ textToCopy }: { textToCopy: string }) {
 }
 
 function AppContent({ user, accessToken }: { user: any, accessToken: string }) {
-  const { identityToken } = useIdentityToken();
   const [count, setCount] = useState(0);
-  const [name, setName] = useState('unknown');
 
   return (
     <>
