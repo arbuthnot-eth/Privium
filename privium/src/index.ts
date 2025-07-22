@@ -215,12 +215,12 @@ app.post('/complete-authorize', async (c) => {
 			// Verify and parse the identity token to get full user data
 			verifiedClaims = await privyClient.verifyAuthToken(token);
 			privyUser = await privyClient.getUser({ idToken });
-			console.log('🔵 OAUTH: Privy Identity and Access tokens verified for user:', privyUser.id);
+			console.log('🔵 OAUTH: Privy Identity and Access tokens verified for user:', verifiedClaims.userId);
 			console.log('🔵 OAUTH: User Data:', privyUser);
 
 		} catch (error) {
 			console.error('🔴 OAUTH ERROR: Token verification failed:', error);
-			return c.json({ 
+			return c.json({
 				error: 'Invalid token', 
 				details: error instanceof Error ? error.message : String(error) 
 			}, 401);
@@ -524,7 +524,7 @@ app.post('/reg', async (c) => {
   });
   
 // Token Revocation / Logout
-  app.post('/revoke', async (c) => {
+app.post('/revoke', async (c) => {
 	try {
 		const body = await c.req.text();
 		const params = new URLSearchParams(body);
@@ -547,7 +547,7 @@ app.post('/reg', async (c) => {
 			details: error instanceof Error ? error.message : String(error) 
 		}, 500);
 	}
-  });
+});
 
 // Bearer token authentication middleware
 const requireAuth = async (c: any, next: any) => {
