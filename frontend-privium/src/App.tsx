@@ -1,4 +1,4 @@
-import { usePrivy, useLogout, useLogin, getAccessToken } from '@privy-io/react-auth';
+import { usePrivy, useLogout, useLogin, getAccessToken, useIdentityToken } from '@privy-io/react-auth';
 import { useState, useCallback, useEffect } from 'react';
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
@@ -55,6 +55,7 @@ function CopyToClipboardButton({ textToCopy }: { textToCopy: string }) {
 }
 
 function AppContent({ user, accessToken }: { user: any, accessToken: string }) {
+  const { identityToken } = useIdentityToken();
   const [count, setCount] = useState(0);
   const [name, setName] = useState('unknown');
 
@@ -86,21 +87,6 @@ function AppContent({ user, accessToken }: { user: any, accessToken: string }) {
           Edit <code>src/App.tsx</code> and save to test HMR
         </p>
       </div>
-      <div key="api-card" className='card'>
-        <button
-          onClick={() => {
-            fetch('/api/')
-              .then((res) => res.json() as Promise<{ name: string }>)
-              .then((data) => setName(data.name))
-          }}
-          aria-label='get name'
-        >
-          Name from API is: {name}
-        </button>
-        <p>
-          Edit <code>worker/index.ts</code> to change the name
-        </p>
-      </div>
       <p key="docs-text" className='read-the-docs'>
         Click on the Vite and React logos to learn more
       </p>
@@ -115,6 +101,7 @@ function AppContent({ user, accessToken }: { user: any, accessToken: string }) {
 
 function AuthorizeHandler({ authParams }: { authParams: { client_id: string | null; redirect_uri: string | null; scope: string | null; state: string | null; response_type: string | null; code_challenge: string | null; code_challenge_method: string | null; resource: string | null } }) {
   const { ready, authenticated, user } = usePrivy();
+  const { identityToken } = useIdentityToken();
   const { login } = useLogin({
     onComplete: () => {
       console.log('🟢 OAUTH LOGIN: User successfully logged in for authorization');
@@ -163,6 +150,7 @@ function AuthorizeHandler({ authParams }: { authParams: { client_id: string | nu
         code_challenge_method: authParams.code_challenge_method,
         resource: authParams.resource,
         accessToken: accessToken,
+        idToken: identityToken, // Include the identity token
       }),
     })
       .then((res) => {
@@ -430,7 +418,7 @@ export default function App() {
         response_type: params.get('response_type'),
         code_challenge: params.get('code_challenge'),
         code_challenge_method: params.get('code_challenge_method'),
-        resource: params.get('resource'),
+        resource: params.get('resource') || 'http://localhost:8787/mcp', // Ensure resource is always set
       });
     }
   }, []);

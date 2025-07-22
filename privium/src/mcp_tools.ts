@@ -1,7 +1,17 @@
 import { z } from "zod";
-import { McpServer, ResourceTemplate} from "@modelcontextprotocol/sdk/server/mcp.js";
+import { ResourceTemplate} from "@modelcontextprotocol/sdk/server/mcp.js";
+import { PrivyClient } from "@privy-io/server-auth";
 
-export function registerTools(server: McpServer) {
+export function initPrivyClient(env: any): PrivyClient {
+  return new PrivyClient(env.PRIVY_APP_ID, env.PRIVY_APP_SECRET, {
+    walletApi: {
+      authorizationPrivateKey: env.AUTH_PRIVATE_KEY,
+    },
+  });
+}
+
+export function registerTools(agent: any, privyClient: PrivyClient) {
+	const server = agent.server;
 	const toolList: { name: string; title: string; description: string }[] = [];
 	// Simple addition tool
 	server.registerTool(
@@ -14,7 +24,7 @@ export function registerTools(server: McpServer) {
 				b: z.number().describe("Second number")
 			},
 		},
-		async ({ a, b }) => ({
+		async ({ a, b }: { a: number, b: number }) => ({
 			content: [{ type: "text", text: String(a + b) }],
 		})
 	);
@@ -29,7 +39,7 @@ export function registerTools(server: McpServer) {
 				name: z.string().describe('Name to greet'),
 			},
 		},
-		async({name}) => {
+		async({ name }: { name: string }) => {
 			return { content: [{ type: "text", text: `Hello, ${name}!` }] };
 		}
 	);
@@ -48,8 +58,8 @@ export function registerTools(server: McpServer) {
 				b: z.number().describe("Second number"),
 			},
 		},
-		async ({ operation, a, b }) => {
-			let result: number;
+		async ({ operation, a, b }: { operation: string, a: number, b: number }) => {
+			let result: number | undefined;
 			switch (operation) {
 				case "add":
 					result = a + b;
@@ -99,7 +109,59 @@ export function registerTools(server: McpServer) {
 		}
 	);
 	toolList.push({ name: "greeting", title: "Greeting Resource", description: "Dynamic greeting generator" });
-  
+
+	// Add user resource
+	server.registerResource(
+		"whoami",
+		new ResourceTemplate("user://me", { list: undefined }),
+		{
+			title: "User Information",
+			description: "Fetches the current user's Privy profile information"
+		},
+		async () => {
+			const user = await privyClient.getUserById(agent.env.userId);
+			return {
+				contents: [{
+					uri: "user://" + agent.env.userId,
+					mimeType: "application/json",
+					text: JSON.stringify(user, null, 2)
+				}]
+			}
+		}
+	);
+
+	// Add wallets resource
+	server.registerResource(
+		"wallets",
+		new ResourceTemplate("wallets://me", { list: undefined }),
+		{
+			title: "User Wallets",
+			description: "Fetches the current user's linked wallets from Privy"
+		},
+		async (uri: URL, extra: any) => {
+			try {
+				const user = await privyClient.getUserById(agent.id.name());
+				const wallets = user.linkedAccounts.filter(
+					(account) => account.type === 'wallet'
+				);
+				return {
+					contents: [{
+						uri: uri.href,
+						mimeType: "application/json",
+						text: JSON.stringify(wallets)
+					}]
+				};
+			} catch (error) {
+				return {
+					contents: [{
+						uri: uri.href,
+						mimeType: "application/json",
+						text: JSON.stringify({ error: "Failed to fetch wallets" })
+					}]
+				};
+			}
+		}
+	);
 
 
 	server.registerTool(

@@ -1,18 +1,20 @@
-import { PrivyClient } from "@privy-io/server-auth";
 import { McpAgent } from "agents/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { registerTools } from "./mcp_tools";
+import { registerTools, initPrivyClient } from "./mcp_tools";
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
+// MCP Server Name and Version
+const SERVER_NAME = "Privium";
+const SERVER_VERSION = "0.9.3";
+
 // Define our MCP agent with version and register tools
-export class MCPrivy extends McpAgent {
-  server = new McpServer({ name: "Privium", version: "0.8.3" });
-  initialState = { sesh: null };
+export class MCPrivy extends McpAgent<Env, DurableObjectState, {}> { // Add generic types
+  server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
 
   async init() {
     // Register tools from external file (mcp_tools.ts)
-    registerTools(this.server);
+    registerTools(this, initPrivyClient(this.env));
 
     // Session management is handled by McpAgent.serve() internally
     // Persist session ID to state if needed for tracking
@@ -24,24 +26,17 @@ export class MCPrivy extends McpAgent {
 }
 
 interface Env {
-  PRIVY_APP_ID: string;
-  PRIVY_APP_SECRET: string;
-  AUTH_PRIVATE_KEY: string; // Use this PEM key for signing (SDK handles it)
-  QUORUM_ID: string;
-  MCP_OBJECT: DurableObjectNamespace<MCPrivy>;
-  OAUTH_KV: KVNamespace;
-  ASSETS: Fetcher;
-  userId?: string; // Extended dynamically for per-request user context
+	PRIVY_APP_ID: string;
+	PRIVY_APP_SECRET: string;
+	AUTH_PRIVATE_KEY: string; // Use this PEM key for signing (SDK handles it)
+	QUORUM_ID: string;
+	MCP_OBJECT: DurableObjectNamespace<MCPrivy>;
+	OAUTH_KV: KVNamespace;
+	ASSETS: Fetcher;
+	privyUser?: any; // Store full Privy user object for per-request context
 }
 
-// Helper to initialize Privy client with walletApi config for automatic signing
-function initPrivyClient(env: Env): PrivyClient {
-  return new PrivyClient(env.PRIVY_APP_ID, env.PRIVY_APP_SECRET, {
-    walletApi: {
-      authorizationPrivateKey: env.AUTH_PRIVATE_KEY,
-    },
-  });
-}
+
 
 // Create Hono app
 const app = new Hono<{ Bindings: Env }>();
@@ -91,7 +86,6 @@ app.get('/authorize', async (c) => {
 		const asset = await c.env.ASSETS.fetch(indexRequest);
 		
 		if (asset.ok) {
-			console.log('🔵 FRONTEND: Asset fetched successfully');
 			let html = await asset.text();
 			// Inject environment variables into the frontend
 			html = html.replace(
@@ -100,7 +94,7 @@ app.get('/authorize', async (c) => {
 					window.PRIVY_APP_ID = "${c.env.PRIVY_APP_ID}";
 				</script></head>`
 			);
-			console.log('🔵 FRONTEND: HTML injected with Privy App ID');
+			console.log('🔵 FRONTEND: Successfully fetched asset and injected Privy App ID');
 			return c.html(html);
 		} else {
 			console.error('🔴 FRONTEND ERROR: Asset fetch failed, status:', asset.status);
@@ -116,32 +110,45 @@ app.get('/authorize', async (c) => {
 app.post('/complete-authorize', async (c) => {
 	try {
 		const body = await c.req.json();
-		console.log('🔵 OAUTH: Request body received:', { 
+		console.log('🔵 OAUTH: Request body received:', {
 			hasAccessToken: !!body.accessToken,
+			hasIdToken: !!body.idToken, // Log presence of idToken
 			client_id: body.client_id,
 			redirect_uri: body.redirect_uri,
 			code_challenge: body.code_challenge ? 'present' : 'missing'
 		});
 		
-		const token = body.accessToken;
-		if (!token) {
+		const accessToken = body.accessToken;
+		const idToken = body.idToken; // Get identity token from body
+		
+		if (!accessToken) {
 			console.error('🔴 OAUTH ERROR: Missing access token');
 			return c.text('Missing access token', 401);
 		}
 
+		if (!idToken) {
+			console.error('🔴 OAUTH ERROR: Missing identity token');
+			return c.text('Missing identity token', 401);
+		}
+
 		console.log('🔵 OAUTH: Verifying Privy token...');
-		const privyClient = initPrivyClient(c.env);
 		
 		let verifiedClaims;
+		let privyUser;
 		try {
-			verifiedClaims = await privyClient.verifyAuthToken(token);
-			console.log('🔵 OAUTH: Token verified for user:', verifiedClaims.userId);
-			console.log(verifiedClaims);
+			const privyClient = initPrivyClient(c.env); // Initialize privyClient here
+			
+			// Verify and parse the identity token to get full user data
+			verifiedClaims = await privyClient.verifyAuthToken(accessToken);
+			privyUser = await privyClient.getUser({ idToken });
+			console.log('🔵 OAUTH: Identity and access tokens verified for user:', privyUser.id);
+			console.log('🔵 OAUTH: Privy User Data:', privyUser);
+
 		} catch (error) {
 			console.error('🔴 OAUTH ERROR: Token verification failed:', error);
-			return c.json({ 
-				error: 'Invalid token', 
-				details: error instanceof Error ? error.message : String(error) 
+			return c.json({
+				error: 'Invalid token',
+				details: error instanceof Error ? error.message : String(error)
 			}, 401);
 		}
 
@@ -152,20 +159,20 @@ app.post('/complete-authorize', async (c) => {
 		// Store the authorization details in KV for later token exchange
 		const authData = {
 			userId: verifiedClaims.userId,
+			privyUser: privyUser, // Store the full Privy user object
 			clientId: body.client_id,
 			redirectUri: body.redirect_uri,
 			scope: body.scope || 'mcp',
 			codeChallenge: body.code_challenge,
 			codeChallengeMethod: body.code_challenge_method,
+			resource: body.resource, // Add resource parameter
 			createdAt: Date.now(),
 		};
 		
-		console.log('🔵 OAUTH: Storing auth data in KV...');
 		await c.env.OAUTH_KV.put(`auth_code:${authCode}`, JSON.stringify(authData), { expirationTtl: 600 });
-		console.log('🔵 OAUTH: Auth data stored successfully');
+		console.log('🔵 OAUTH: Successfully stored auth data in KV');
 
-		// Build redirect URL back to Cursor
-		console.log('🔵 OAUTH: Building redirect URL...');
+		// Build redirect URL
 		const redirectUrl = new URL(body.redirect_uri);
 		redirectUrl.searchParams.set('code', authCode);
 		if (body.state) {
@@ -208,6 +215,7 @@ app.post('/token', async (c) => {
 		const code = params.get('code');
 		const codeVerifier = params.get('code_verifier');
 		const redirectUri = params.get('redirect_uri');
+		const resource = params.get('resource') || 'http://localhost:8787/mcp'; // Default to MCP server URI if not provided
 
 		// If client_id was not in Basic Auth, try to get it from the body
 		if (!clientId) {
@@ -222,28 +230,26 @@ app.post('/token', async (c) => {
 
 		if (grantType !== 'authorization_code') {
 			console.error('🔴 TOKEN ERROR: Unsupported grant type:', grantType);
-			return c.json({ error: 'unsupported_grant_type' }, 400);
+			return c.json({ error: 'unsupported_grant_type', error_description: 'The authorization grant type is not supported by the authorization server.' }, 400);
 		}
 
 		if (!code || !clientId || !codeVerifier) {
 			console.error('🔴 TOKEN ERROR: Missing required parameters (code, clientId, codeVerifier)');
-			return c.json({ error: 'invalid_request' }, 400);
+			return c.json({ error: 'invalid_request', error_description: 'Missing required parameters (code, client_id, code_verifier).' }, 400);
 		}
 
 		// Retrieve auth data from KV
-		console.log('🔵 TOKEN: Retrieving auth data from KV...');
 		const authDataStr = await c.env.OAUTH_KV.get(`auth_code:${code}`);
 		if (!authDataStr) {
 			console.error('🔴 TOKEN ERROR: Invalid or expired authorization code');
-			return c.json({ error: 'invalid_grant' }, 400);
+			return c.json({ error: 'invalid_grant', error_description: 'Invalid or expired authorization code.' }, 400);
 		}
 
 		const authData = JSON.parse(authDataStr);
-		console.log('🔵 TOKEN: Auth data retrieved for user:', authData.userId);
+		console.log('🔵 TOKEN: Auth data retrieved from KV (user:', authData.userId,')');
 
 		// Validate PKCE
 		if (authData.codeChallenge && authData.codeChallengeMethod === 'S256') {
-			console.log('🔵 TOKEN: Validating PKCE...');
 			const encoder = new TextEncoder();
 			const data = encoder.encode(codeVerifier);
 			const digest = await crypto.subtle.digest('SHA-256', data);
@@ -254,7 +260,7 @@ app.post('/token', async (c) => {
 			
 			if (base64Digest !== authData.codeChallenge) {
 				console.error('🔴 TOKEN ERROR: PKCE validation failed');
-				return c.json({ error: 'invalid_grant' }, 400);
+				return c.json({ error: 'invalid_grant', error_description: 'PKCE validation failed.' }, 400);
 			}
 			console.log('🔵 TOKEN: PKCE validation successful');
 		}
@@ -262,7 +268,7 @@ app.post('/token', async (c) => {
 		// Validate client and redirect URI
 		if (authData.clientId !== clientId || authData.redirectUri !== redirectUri) {
 			console.error('🔴 TOKEN ERROR: Client ID or redirect URI mismatch');
-			return c.json({ error: 'invalid_grant' }, 400);
+			return c.json({ error: 'invalid_grant', error_description: 'Client ID or redirect URI mismatch.' }, 400);
 		}
 
 		// Generate access token
@@ -271,14 +277,16 @@ app.post('/token', async (c) => {
 		
 		// Store token data in KV
 		const tokenData = {
-			userId: authData.userId,
+			userId: authData.privyUser.id,
+			privyUser: authData.privyUser,
 			clientId: authData.clientId,
 			scope: authData.scope,
+			resource: resource, // Store resource with token
 			createdAt: Date.now(),
 		};
 		
 		await c.env.OAUTH_KV.put(`access_token:${accessToken}`, JSON.stringify(tokenData), { expirationTtl: 36000 });
-		console.log('🔵 TOKEN: Access token stored in KV');
+		console.log('🔵 TOKEN: Access and Identity tokens stored in KV');
 
 		// Clean up authorization code
 		await c.env.OAUTH_KV.delete(`auth_code:${code}`);
@@ -291,9 +299,9 @@ app.post('/token', async (c) => {
 		});
 	} catch (error) {
 		console.error('🔴 TOKEN ERROR: Token exchange failed:', error);
-		return c.json({ 
-			error: 'server_error', 
-			details: error instanceof Error ? error.message : String(error) 
+		return c.json({
+			error: 'server_error',
+			error_description: `An unexpected error occurred: ${error instanceof Error ? error.message : String(error)}`
 		}, 500);
 	}
 });
@@ -323,7 +331,7 @@ app.post('/reg', async (c) => {
 		};
 
 		await c.env.OAUTH_KV.put(`client:${clientId}`, JSON.stringify(clientData));
-		console.log('🔵 REG: Client registered successfully');
+		console.log('🔵 REG: Successfully registered client');
 
 		return c.json({
 			client_id: clientId,
@@ -361,7 +369,7 @@ app.post('/revoke', async (c) => {
 		const accessTokenData = await c.env.OAUTH_KV.get(accessTokenKey);
 		if (accessTokenData) {
 			await c.env.OAUTH_KV.delete(accessTokenKey);
-			console.log('🔵 REVOKE: Access token revoked successfully');
+			console.log('🔵 REVOKE: Successfully revoked access token');
 		}
 
 		// Try to revoke as auth code (just in case)
@@ -369,7 +377,7 @@ app.post('/revoke', async (c) => {
 		const authCodeData = await c.env.OAUTH_KV.get(authCodeKey);
 		if (authCodeData) {
 			await c.env.OAUTH_KV.delete(authCodeKey);
-			console.log('🔵 REVOKE: Auth code revoked successfully');
+			console.log('🔵 REVOKE: Successfully revoked auth code');
 		}
 
 		// Per RFC 7009, return 200 OK even if token wasn't found
@@ -391,27 +399,44 @@ const requireAuth = async (c: any, next: any) => {
 	const authHeader = c.req.header('Authorization');
 	if (!authHeader || !authHeader.startsWith('Bearer ')) {
 		console.error('🔴 MCP ERROR: Missing or invalid Authorization header');
-		c.header('WWW-Authenticate', 'Bearer realm="mcp"');
-		return c.text('Unauthorized', 401);
+		const url = new URL(c.req.url);
+		const resourceMetadataUrl = `${url.origin}/.well-known/oauth-protected-resource`;
+		c.header('WWW-Authenticate', `Bearer realm="mcp", resource_metadata="${resourceMetadataUrl}"`);
+		return c.json({ error: 'invalid_token', error_description: 'Missing or invalid Authorization header.' }, 401);
 	}
 
 	const token = authHeader.substring(7); // Remove "Bearer " prefix
-	console.log('🔵 MCP: Validating access token...');
-	
+
 	// Retrieve token data from KV
 	const tokenDataStr = await c.env.OAUTH_KV.get(`access_token:${token}`);
 	if (!tokenDataStr) {
 		console.error('🔴 MCP ERROR: Invalid or expired access token');
-		c.header('WWW-Authenticate', 'Bearer realm="mcp"');
-		return c.text('Unauthorized', 401);
+		const url = new URL(c.req.url);
+		const resourceMetadataUrl = `${url.origin}/.well-known/oauth-protected-resource`;
+		c.header('WWW-Authenticate', `Bearer realm="mcp", resource_metadata="${resourceMetadataUrl}"`);
+		return c.json({ error: 'invalid_token', error_description: 'Missing or invalid Authorization header.' }, 401);
 	}
 
 	const tokenData = JSON.parse(tokenDataStr);
 	console.log('🔵 MCP: Token validated for user:', tokenData.userId);
 
+	// Validate token audience (resource)
+	const currentResourceUri = `${new URL(c.req.url).origin}/mcp`; // Canonical URI of this MCP server
+	if (tokenData.resource !== currentResourceUri) {
+		console.error('🔴 MCP ERROR: Token audience mismatch. Expected:', currentResourceUri, 'Received:', tokenData.resource);
+		c.header('WWW-Authenticate', `Bearer realm="mcp", resource_metadata="${currentResourceUri}"`);
+		return c.json({ error: 'invalid_token', error_description: 'Token was not issued for this resource.' }, 401);
+	}
+
+	// Check for required scopes (e.g., 'mcp')
+	if (!tokenData.scope || !tokenData.scope.includes('mcp')) {
+		console.error('🔴 MCP ERROR: Insufficient scope. Token scope:', tokenData.scope);
+		return c.json({ error: 'insufficient_scope', error_description: 'The access token does not have the required scope for this resource.' }, 403);
+	}
+	console.log('🔵 MCP: Successfully validated Token audience and Scope.');
 	// Set user context
-	c.env.userId = tokenData.userId;
-	
+	c.env.privyUser = tokenData.privyUser;
+
 	await next();
 };
 
@@ -419,8 +444,8 @@ const requireAuth = async (c: any, next: any) => {
 app.get('/mcp', async (c) => {
 	const url = new URL(c.req.url);
 	return c.json({
-		name: "Privium MCP Server",
-		version: "0.3.1",
+		name: SERVER_NAME,
+		version: SERVER_VERSION,
 		status: "running",
 		protocol: "Model Context Protocol",
 		authentication_required: true,
@@ -455,13 +480,5 @@ app.all('/mcp/*', requireAuth, async (c) => {
 	}
 });
 
-// Serve static assets (fallback for other requests)
-app.get('*', async (c) => {
-	try {
-		return c.env.ASSETS.fetch(c.req.raw);
-	} catch (error) {
-		return c.text('Not Found', 404);
-	}
-});
 
 export default app;
