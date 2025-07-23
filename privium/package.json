@@ -4,10 +4,10 @@
 	"private": true,
 	"scripts": {
 		"deploy": "wrangler deploy",
-		"dev": "wrangler dev",
+		"dev": "wrangler dev --local-protocol=https",
 		"format": "biome format --write",
 		"lint:fix": "biome lint --fix",
-		"start": "wrangler dev",
+		"start": "wrangler dev --local-protocol=https",
 		"cf-typegen": "wrangler types",
 		"type-check": "tsc --noEmit"
 	},

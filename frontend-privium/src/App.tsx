@@ -162,7 +162,7 @@ function AuthorizeHandler({ authParams }: { authParams: { client_id: string | nu
         // Close the window after redirect
         setTimeout(() => {
           window.close();
-        }, 1500);
+        }, 4000);
       })
       .catch((err) => {
         console.error('🔴 OAUTH ERROR: Authorization error:', err);
@@ -382,7 +382,7 @@ function AuthorizeHandler({ authParams }: { authParams: { client_id: string | nu
             margin: '16px 0 0 0',
             lineHeight: '1.4'
           }}>
-            This allows Cursor to connect to your Privium MCP Server using OAuth 2.1 with PKCE
+            This allows the MCP Client to connect to your Privium MCP Server using OAuth 2.1 with PKCE
           </p>
         </div>
       </div>

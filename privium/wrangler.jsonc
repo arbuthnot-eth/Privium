@@ -29,10 +29,10 @@
 	"kv_namespaces": [
 		{
     	"binding": "OAUTH_KV",
-    	"id": "${OAUTH_KV}",
+    	"id": "a7f86f0f98e34a9d8d5a83c9a557d91b",
       
     	// Optional: preview_id used when running `wrangler dev` for local dev
-    	"preview_id": "${OAUTH_KV_DEV}"
+    	"preview_id": "9d8bf76d43da4d9e91030ec9bbf1b083"
     	}
   	],
 	"assets": {
