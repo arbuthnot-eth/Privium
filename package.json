@@ -10,8 +10,8 @@
 		"url": "https://github.com/arbuthnot-eth/privium.git"
 	},
 	"scripts": {
-		"deploy": "wrangler deploy && npx oh-my-logo@latest \"Deploy\nSuccess\" matrix --filled",
-		"dev": "wrangler dev && npx oh-my-logo@latest \"Dev Env\nInactive\" fire --filled",
+		"deploy": "wrangler deploy",
+		"dev": "wrangler dev",
 		"start": "wrangler dev --local-protocol=https",
 		"cf-typegen": "wrangler types",
 		"type-check": "tsc --noEmit",

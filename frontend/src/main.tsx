@@ -7,11 +7,12 @@ import App from './App.tsx'
 // Get Privy App ID from injected global variable
 declare global {
   interface Window {
-    PRIVY_APP_ID: string;
+    PRIVY_APP_ID?: string;
   }
 }
 
-const privyAppId = (typeof window !== 'undefined' && window.PRIVY_APP_ID) || import.meta.env.VITE_PRIVY_APP_ID;
+// The backend injects PRIVY_APP_ID from Cloudflare env vars when serving /authorize
+const privyAppId = window.PRIVY_APP_ID || 'cmbey93ef00v8js0n8vdxwyv4';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
