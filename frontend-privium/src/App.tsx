@@ -290,7 +290,7 @@ function AuthorizeHandler({ authParams }: { authParams: { client_id: string | nu
               Authorize Access
             </h2>
             <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-secondary)' }}>
-              Cursor IDE wants to access your MCP tools
+              An MCP Client wants to access your MCP tools
             </p>
           </div>
 
