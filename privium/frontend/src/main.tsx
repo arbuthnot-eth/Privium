@@ -19,7 +19,7 @@ createRoot(document.getElementById('root')!).render(
       appId={privyAppId}
       config={{
         appearance: {
-          theme: 'light',
+          theme: 'dark',
           accentColor: '#676FFF',
         },
         loginMethods: ['email', 'wallet', 'google', 'github'],

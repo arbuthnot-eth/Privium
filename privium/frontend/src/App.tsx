@@ -1,18 +1,12 @@
 import { usePrivy, useLogout, useLogin, getAccessToken, useIdentityToken } from '@privy-io/react-auth';
 import { useState, useCallback, useEffect } from 'react';
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import cloudflareLogo from './assets/Cloudflare_Logo.svg'
-import './App.css'
 
 function LogoutButton() {
   const { logout } = useLogout({
     onSuccess: () => {
       console.log('🔴 LOGOUT: User successfully logged out');
-      // Redirect to landing page or perform other post-logout actions
     }
   });
-
   return <button onClick={logout}>Log out</button>;
 }
 
@@ -22,7 +16,6 @@ function LoginScreen() {
       console.log('🟢 LOGIN: User successfully logged in (LoginScreen)');
     }
   });
-
   return (
     <div style={{ textAlign: 'center', padding: '2rem' }}>
       <h1>Welcome to Privium</h1>
@@ -36,64 +29,19 @@ function LoginScreen() {
 
 function CopyToClipboardButton({ textToCopy }: { textToCopy: string }) {
   const [isCopied, setIsCopied] = useState(false);
-
   const handleCopyClick = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(textToCopy);
       setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000); // Reset "Copied!" message after 2 seconds
+      setTimeout(() => setIsCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy text: ', err);
     }
   }, [textToCopy]);
-
   return (
     <button onClick={handleCopyClick} style={{ marginLeft: '10px', padding: '5px 10px', fontSize: '14px', cursor: 'pointer' }}>
       {isCopied ? 'Copied!' : 'Copy'}
     </button>
-  );
-}
-
-function AppContent({ user, accessToken }: { user: any, accessToken: string }) {
-  const [count, setCount] = useState(0);
-
-  return (
-    <>
-      <div key="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', maxWidth: '800px', margin: '0 auto' }}>
-        <div>
-          <a key="vite" href='https://vite.dev' target='_blank'>
-            <img src={viteLogo} className='logo' alt='Vite logo' />
-          </a>
-          <a key="react" href='https://react.dev' target='_blank'>
-            <img src={reactLogo} className='logo react' alt='React logo' />
-          </a>
-          <a key="cloudflare" href='https://workers.cloudflare.com/' target='_blank'>
-            <img src={cloudflareLogo} className='logo cloudflare' alt='Cloudflare logo' />
-          </a>
-        </div>
-        <LogoutButton />
-      </div>
-      <h1 key="title">Vite + React + Cloudflare</h1>
-      <div key="counter-card" className='card'>
-        <button
-          onClick={() => setCount((count) => count + 1)}
-          aria-label='increment'
-        >
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p key="docs-text" className='read-the-docs'>
-        Click on the Vite and React logos to learn more
-      </p>
-      <p key="user-info">User {user?.id} is logged in.</p>
-      <div key="access-token-display" style={{ display: 'flex', alignItems: 'center', marginTop: '1rem' }}>
-        <p style={{ margin: 0 }}>Access Token: {accessToken ? `${accessToken.substring(0, 20)}...` : 'N/A'}</p>
-        {accessToken && <CopyToClipboardButton textToCopy={accessToken} />}
-      </div>
-    </>
   );
 }
 
@@ -124,8 +72,6 @@ function AuthorizeHandler({ authParams }: { authParams: { client_id: string | nu
     }
   }, [ready, authenticated]);
 
-  // Removed auto-trigger - now wait for explicit user consent
-
   const handleApprove = () => {
     console.log('🟢 OAUTH: User clicked Grant Authorization');
     console.log('🔵 OAUTH: Starting handleApprove with accessToken:', !!accessToken, 'redirect_uri:', authParams.redirect_uri);
@@ -148,7 +94,7 @@ function AuthorizeHandler({ authParams }: { authParams: { client_id: string | nu
         code_challenge_method: authParams.code_challenge_method,
         resource: authParams.resource,
         accessToken: accessToken,
-        idToken: identityToken, // Include the identity token
+        idToken: identityToken,
       }),
     })
       .then((res) => {
@@ -159,7 +105,6 @@ function AuthorizeHandler({ authParams }: { authParams: { client_id: string | nu
         console.log('🔵 OAUTH: Received redirect response:', data);
         console.log('🔵 OAUTH: Redirecting to:', data.redirectTo);
         window.location.href = data.redirectTo;
-        // Close the window after redirect
         setTimeout(() => {
           window.close();
         }, 4000);
@@ -167,7 +112,6 @@ function AuthorizeHandler({ authParams }: { authParams: { client_id: string | nu
       .catch((err) => {
         console.error('🔴 OAUTH ERROR: Authorization error:', err);
         setProcessing(false);
-        // Optional: Render an error message in the UI
       });
   };
 
@@ -180,7 +124,6 @@ function AuthorizeHandler({ authParams }: { authParams: { client_id: string | nu
       console.log('🔴 OAUTH: Redirecting with access_denied error to:', redirectUrl.toString());
       window.location.href = redirectUrl.toString();
     }
-    // Always attempt to close the window after the redirect, or directly if no redirect URI
     console.log('🔴 OAUTH: Attempting to close window...');
     window.close();
   };
@@ -415,13 +358,12 @@ export default function App() {
         response_type: params.get('response_type'),
         code_challenge: params.get('code_challenge'),
         code_challenge_method: params.get('code_challenge_method'),
-        resource: params.get('resource') || window.location.origin + '/mcp', // Ensure resource is always set
+        resource: params.get('resource') || window.location.origin + '/mcp',
       });
     }
   }, []);
   
   if (!ready) {
-      // Do nothing while the PrivyProvider initializes with updated user state
       return <>Loading</>;
   }
   
@@ -430,13 +372,21 @@ export default function App() {
   }
   
   if (ready && !authenticated) {
-      // Show login screen when user is not authenticated
       return <LoginScreen />;
   }
   
   if (ready && authenticated) {
-      // Show the main app content when authenticated
-      return <AppContent user={user} accessToken={accessToken || ''} />;
+      return (
+        <div style={{ textAlign: 'center', padding: '2rem' }}>
+          <h1>Welcome to Privium</h1>
+          <p>User {user?.id} is logged in.</p>
+          <LogoutButton />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '1rem' }}>
+            <p style={{ margin: 0 }}>Access Token: {accessToken ? `${accessToken.substring(0, 20)}...` : 'N/A'}</p>
+            {accessToken && <CopyToClipboardButton textToCopy={accessToken} />}
+          </div>
+        </div>
+      );
   }
-  return null; // Should not reach here, but good for exhaustive checks
+  return null;
 }
