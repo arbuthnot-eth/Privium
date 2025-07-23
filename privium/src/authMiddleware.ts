@@ -346,7 +346,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 		  const wrappedAccessKey = await wrapKeyWithToken(accessToken, accessKey);
 		  const encryptedTokenData = { encryptedData: encAccessData, iv: accessIv, wrappedKey: wrappedAccessKey };
 		  await c.env.OAUTH_KV.put(`access_token:${await hashSecret(accessToken)}`, JSON.stringify(encryptedTokenData), { expirationTtl: 36000 });
-		  console.log('🔵 TOKEN: Encrypted Access and Identity tokens stored in KV');
+
   
 		  // Generate refresh token
 		  const newRefreshToken = crypto.randomUUID();
@@ -363,7 +363,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 		  const wrappedRefreshKey = await wrapKeyWithToken(newRefreshToken, refreshKey);
 		  const encryptedRefreshData = { encryptedData: encRefreshData, iv: refreshIv, wrappedKey: wrappedRefreshKey };
 		  await c.env.OAUTH_KV.put(`refresh_token:${await hashSecret(newRefreshToken)}`, JSON.stringify(encryptedRefreshData));
-		  console.log('🔵 TOKEN: Encrypted refresh token stored in KV');
+		  console.log('🔵 TOKEN: Encrypted Access, Identity, and Refresh tokens stored in KV');
   
 		  // Clean up authorization code
 		  await c.env.OAUTH_KV.delete(`auth_code:${code}`);

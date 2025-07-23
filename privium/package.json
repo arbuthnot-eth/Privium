@@ -1,6 +1,6 @@
 {
 	"name": "Privium",
-	"version": "0.99.2",
+	"version": "0.99.31",
 	"private": true,
 	"scripts": {
 		"deploy": "wrangler deploy",
