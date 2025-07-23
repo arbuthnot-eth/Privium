@@ -1,8 +1,6 @@
-import { Context } from 'hono';
-import { Hono } from 'hono';
-import { initPrivyClient } from './mcp_tools';
+import { Hono, Context } from 'hono';
 import { cors } from 'hono/cors';
-import { Env } from './index';
+import { initPrivyClient } from './mcp_tools';
 
 // Auth Handler
 export const authHandler = (app: Hono<{ Bindings: Env }>) => {
@@ -32,6 +30,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 	  });
 	});
   
+	// OAuth Protected Resource Endpoints
 	app.get('/.well-known/oauth-protected-resource', (c) => {
 	  const url = new URL(c.req.url);
 	  return c.json({
@@ -83,24 +82,23 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 			  code_challenge: body.code_challenge ? 'present' : 'missing'
 		  });
 		  
+		  // Get access and identity tokens
 		  const token = body.accessToken;
 		  const idToken = body.idToken;
 		  if (!token) {
 			  console.error('🔴 OAUTH ERROR: Missing access token');
 			  return c.text('Missing access token', 401);
 		  }
-  
 		  if (!idToken) {
 			  console.error('🔴 OAUTH ERROR: Missing identity token');
 			  return c.text('Missing identity token', 401);
 		  }
 		  
+		  // Verify and parse the identity token to get full user data
 		  let verifiedClaims;
 		  let privyUser;
 		  try {
-			  const privyClient = initPrivyClient(c.env); // Initialize privyClient here
-			  
-			  // Verify and parse the identity token to get full user data
+			  const privyClient = initPrivyClient(c.env);
 			  verifiedClaims = await privyClient.verifyAuthToken(token);
 			  privyUser = await privyClient.getUser({ idToken });
 			  console.log('🔵 OAUTH: Privy Identity and Access tokens verified for user:', verifiedClaims.userId);
@@ -116,7 +114,6 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
   
 		  // Generate authorization code
 		  const authCode = crypto.randomUUID();
-  
 		  
 		  // Store the authorization details in KV for later token exchange
 		  const authData = {
@@ -130,6 +127,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 			  createdAt: Date.now(),
 		  };
 		  
+		  // Encrypt auth data
 		  const { encryptedData, iv, key } = await encryptProps(authData);
 		  const wrappedKey = await wrapKeyWithToken(authCode, key);
 		  const encryptedAuthData = { encryptedData, iv, wrappedKey };
@@ -139,13 +137,11 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 		  // Build redirect URL
 		  const redirectUrl = new URL(body.redirect_uri);
 		  redirectUrl.searchParams.set('code', authCode);
-		  if (body.state) {
-			  redirectUrl.searchParams.set('state', body.state);
-		  }
-		  
+		  if (body.state) {redirectUrl.searchParams.set('state', body.state);}
 		  const redirectTo = redirectUrl.toString();
 		  console.log('🔵 OAUTH: Redirect URL built:', redirectTo);
   
+		  // Return redirect URL
 		  return c.json({ redirectTo });
 	  } catch (error) {
 		  console.error('🔴 OAUTH ERROR: /complete-authorize failed:', error);
@@ -172,9 +168,10 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 			  console.log('🔵 TOKEN: Basic Auth client_id:', clientId);
 		  }
   
+		  // Get request body
 		  const body = await c.req.text();
 		  const params = new URLSearchParams(body);
-		  
+		  // Get grant type, code, code verifier, redirect URI, and refresh token
 		  const grantType = params.get('grant_type');
 		  const code = params.get('code');
 		  const codeVerifier = params.get('code_verifier');
@@ -190,7 +187,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 			  clientSecret = params.get('client_secret');
 		  }
   
-		  console.log('🔵 TOKEN: Exchange request:', { grantType, code, refreshToken, clientId, hasCodeVerifier: !!codeVerifier, hasClientSecret: !!clientSecret });
+		  console.log('🔵 TOKEN: Exchange request received');
   
 		  // Handle refresh_token grant type
 		  if (grantType === 'refresh_token') {
@@ -199,13 +196,14 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 				  return c.json({ error: 'invalid_request' }, 400);
 			  }
   
-			  console.log('🔵 TOKEN: Refresh token request...');
+			  // Retrieve refresh token data from KV
 			  const refreshDataStr = await c.env.OAUTH_KV.get(`refresh_token:${await hashSecret(refreshToken)}`);
 			  if (!refreshDataStr) {
-				  console.error('🔴 TOKEN ERROR: Invalid or expired refresh token');
-				  return c.json({ error: 'invalid_grant' }, 400);
+			   console.error('🔴 TOKEN ERROR: Invalid or expired refresh token');
+			   return c.json({ error: 'invalid_grant' }, 400);
 			  }
   
+			  // Decrypt refresh token data
 			  const encryptedRefreshData = JSON.parse(refreshDataStr);
 			  const unwrappedRefreshKey = await crypto.subtle.unwrapKey(
 				  'raw',
@@ -216,6 +214,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 				  false,
 				  ['decrypt']
 			  );
+			  // Decrypt refresh token data
 			  const refreshData = await decryptProps(encryptedRefreshData.encryptedData, encryptedRefreshData.iv, unwrappedRefreshKey);
 			  console.log('🔵 TOKEN: Decrypted refresh data retrieved for user:', refreshData.userId);
   
@@ -236,6 +235,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 				  createdAt: Date.now(),
 			  };
   
+			  // Encrypt access token data
 			  const { encryptedData: newEncAccessData, iv: newAccessIv, key: newAccessKey } = await encryptProps(tokenData);
 			  const newWrappedAccessKey = await wrapKeyWithToken(newAccessToken, newAccessKey);
 			  const newEncryptedTokenData = { encryptedData: newEncAccessData, iv: newAccessIv, wrappedKey: newWrappedAccessKey };
@@ -252,6 +252,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 				  createdAt: Date.now(),
 			  };
   
+			  // Encrypt refresh token data
 			  const { encryptedData: newEncRefreshData, iv: newRefreshIv, key: newRefreshKey } = await encryptProps(newRefreshData);
 			  const newWrappedRefreshKey = await wrapKeyWithToken(newRefreshToken, newRefreshKey);
 			  const newEncryptedRefreshData = { encryptedData: newEncRefreshData, iv: newRefreshIv, wrappedKey: newWrappedRefreshKey };
@@ -262,6 +263,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 			  await c.env.OAUTH_KV.delete(`refresh_token:${await hashSecret(refreshToken)}`);
 			  console.log('🔵 TOKEN: Old refresh token invalidated');
   
+			  // Return new access token and refresh token
 			  return c.json({
 				  access_token: newAccessToken,
 				  token_type: 'Bearer',
@@ -281,14 +283,15 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 			  console.error('🔴 TOKEN ERROR: Missing required parameters (code, clientId, codeVerifier)');
 			  return c.json({ error: 'invalid_request', error_description: 'Missing required parameters (code, client_id, code_verifier).' }, 400);
 		  }
-  
+		
 		  // Retrieve auth data from KV
 		  const authDataStr = await c.env.OAUTH_KV.get(`auth_code:${code}`);
 		  if (!authDataStr) {
-			  console.error('🔴 TOKEN ERROR: Invalid or expired authorization code');
-			  return c.json({ error: 'invalid_grant' }, 400);
+		   console.error('🔴 TOKEN ERROR: Invalid or expired authorization code');
+		   return c.json({ error: 'invalid_grant' }, 400);
 		  }
   
+		  // Decrypt auth data
 		  const encryptedAuthData = JSON.parse(authDataStr);
 		  const unwrappedKey = await crypto.subtle.unwrapKey(
 			  'raw',
@@ -311,7 +314,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 				  .replace(/\+/g, '-')
 				  .replace(/\//g, '_')
 				  .replace(/=/g, '');
-			  
+			
 			  if (base64Digest !== authData.codeChallenge) {
 				  console.error('🔴 TOKEN ERROR: PKCE validation failed');
 				  return c.json({ error: 'invalid_grant', error_description: 'PKCE validation failed.' }, 400);
@@ -338,6 +341,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 			  createdAt: Date.now(),
 		  };
 		  
+		  // Encrypt access token data
 		  const { encryptedData: encAccessData, iv: accessIv, key: accessKey } = await encryptProps(tokenData);
 		  const wrappedAccessKey = await wrapKeyWithToken(accessToken, accessKey);
 		  const encryptedTokenData = { encryptedData: encAccessData, iv: accessIv, wrappedKey: wrappedAccessKey };
@@ -354,6 +358,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 			  createdAt: Date.now(),
 		  };
 		  
+		  // Encrypt refresh token data
 		  const { encryptedData: encRefreshData, iv: refreshIv, key: refreshKey } = await encryptProps(refreshData);
 		  const wrappedRefreshKey = await wrapKeyWithToken(newRefreshToken, refreshKey);
 		  const encryptedRefreshData = { encryptedData: encRefreshData, iv: refreshIv, wrappedKey: wrappedRefreshKey };
@@ -363,6 +368,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 		  // Clean up authorization code
 		  await c.env.OAUTH_KV.delete(`auth_code:${code}`);
   
+		  // Return access token and refresh token
 		  return c.json({
 			  access_token: accessToken,
 			  token_type: 'Bearer',
@@ -389,6 +395,8 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 			  console.error('🔴 REG ERROR: Missing or invalid redirect_uris');
 			  return c.json({ error: 'invalid_client_metadata' }, 400);
 		}
+
+		// Generate client ID and secret
 		const clientId = crypto.randomUUID();
 		const clientSecret = crypto.randomUUID();
 		const hashedSecret = await hashSecret(clientSecret);
@@ -398,8 +406,8 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 		  client_secret: hashedSecret,
 		  client_id_issued_at: Math.floor(Date.now() / 1000)
 		};
-		
-  
+
+		// Encrypt client data	
 		const { encryptedData: encClientData, iv: clientIv, key: clientKey } = await encryptProps(clientData);
 		const wrappedClientKey = await wrapKeyWithToken(clientId, clientKey);
 		const encryptedClientData = { encryptedData: encClientData, iv: clientIv, wrappedKey: wrappedClientKey };
@@ -407,6 +415,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 		console.log('🔵 REG: Successfully stored encrypted client data in KV');
 		return c.json({...clientData, client_secret: clientSecret});
 	  } catch (error) {
+		console.error('🔴 REG ERROR: Client registration failed:', error);
 		return c.json({error: 'server_error'}, 500);
 	  }
 	});
@@ -421,7 +430,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 		  if (!token) {
 			  return c.json({ error: 'invalid_request' }, 400);
 		  }
-		  
+		  // Hash token for lookup
 		  const hashedToken = await hashSecret(token);
 		  await c.env.OAUTH_KV.delete(`access_token:${hashedToken}`);
 		  await c.env.OAUTH_KV.delete(`refresh_token:${hashedToken}`);
@@ -463,6 +472,7 @@ export const requireAuth = async (c: Context<{ Bindings: Env }>, next: any) => {
     return c.text('Unauthorized', 401);
   }
 
+  // Decrypt token data
   const encryptedTokenData = JSON.parse(tokenDataStr);
   const unwrappedTokenKey = await crypto.subtle.unwrapKey(
     'raw',
@@ -490,7 +500,8 @@ export async function hashSecret(secret: string): Promise<string> {
 	const hashArray = Array.from(new Uint8Array(hashBuffer));
 	return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
-  
+
+// Encrypt properties
 export async function encryptProps(data: any): Promise<{ encryptedData: string; iv: string; key: CryptoKey }> {
 	const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']) as CryptoKey;
 	const iv = crypto.getRandomValues(new Uint8Array(12)); // Generate random IV for security
@@ -504,7 +515,8 @@ export async function encryptProps(data: any): Promise<{ encryptedData: string; 
 	  key,
 	};
 }
-  
+
+// Decrypt properties
 export async function decryptProps(encryptedData: string, iv: string, key: CryptoKey): Promise<any> {
 	const encryptedBuffer = base64ToArrayBuffer(encryptedData);
 	const ivBuffer = base64ToArrayBuffer(iv);
@@ -513,7 +525,8 @@ export async function decryptProps(encryptedData: string, iv: string, key: Crypt
 	const jsonData = decoder.decode(decryptedBuffer);
 	return JSON.parse(jsonData);
 }
-  
+
+// Convert base64 to array buffer
 export function base64ToArrayBuffer(base64: string): ArrayBuffer {
 	const binaryString = atob(base64);
 	const bytes = new Uint8Array(binaryString.length);
@@ -522,17 +535,20 @@ export function base64ToArrayBuffer(base64: string): ArrayBuffer {
 	}
 	return bytes.buffer;
 }
-  
+
+// Convert array buffer to base64
 export function arrayBufferToBase64(buffer: ArrayBuffer): string {
 	return btoa(String.fromCharCode(...Array.from(new Uint8Array(buffer))));
 }
-  
+
+// Wrap key with token
 export async function wrapKeyWithToken(tokenStr: string, keyToWrap: CryptoKey): Promise<string> {
 	const wrappingKey = await deriveKeyFromToken(tokenStr);
 	const wrappedKeyBuffer = await crypto.subtle.wrapKey('raw', keyToWrap, wrappingKey, { name: 'AES-KW' });
 	return arrayBufferToBase64(wrappedKeyBuffer);
 }
-  
+
+// Derive key from token
 export async function deriveKeyFromToken(tokenStr: string): Promise<CryptoKey> {
 	const encoder = new TextEncoder();
 	// Use a derived static key from the token string itself for key wrapping

@@ -1,28 +1,22 @@
 {
-	"name": "remote-mcp-server-authless",
-	"version": "0.0.0",
+	"name": "Privium",
+	"version": "0.99.2",
 	"private": true,
 	"scripts": {
 		"deploy": "wrangler deploy",
-		"dev": "wrangler dev --local-protocol=https",
-		"format": "biome format --write",
-		"lint:fix": "biome lint --fix",
+		"dev": "wrangler dev",
 		"start": "wrangler dev --local-protocol=https",
 		"cf-typegen": "wrangler types",
 		"type-check": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@cloudflare/workers-oauth-provider": "^0.0.5",
 		"@modelcontextprotocol/sdk": "^1.16.0",
 		"@privy-io/server-auth": "^1.28.4",
 		"agents": "^0.0.100",
 		"hono": "^4.8.5",
-		"jsonwebtoken": "^9.0.2",
 		"zod": "^3.25.67"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.0.6",
-		"@types/jsonwebtoken": "^9.0.10",
 		"@types/node": "^24.0.14",
 		"typescript": "^5.8.3",
 		"wrangler": "^4.25.1"

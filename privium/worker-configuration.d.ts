@@ -3,8 +3,7 @@
 // Runtime types generated with workerd@1.20250712.0 2025-07-16 nodejs_compat
 declare namespace Cloudflare {
 	interface Env {
-		KV: KVNamespace;
-		VITE_FRONTEND_URL: string;
+		OAUTH_KV: KVNamespace;
 		PRIVY_APP_ID: string;
 		PRIVY_APP_SECRET: string;
 		AUTH_PRIVATE_KEY: string;
@@ -12,6 +11,7 @@ declare namespace Cloudflare {
 		MCP_OBJECT: DurableObjectNamespace<import("./src/index").MCPrivy>;
 		AI: Ai;
 		ASSETS: Fetcher;
+		privyUser?: any;
 	}
 }
 interface Env extends Cloudflare.Env {}

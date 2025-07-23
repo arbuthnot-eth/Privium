@@ -11,24 +11,13 @@ const SERVER_VERSION = "0.99.3";
 export class MCPrivy extends McpAgent<Env, DurableObjectState, {}> {
   server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION, description: 'Privium MCP Server', documentation: 'https://github.com/arbuthnot-eth/privium'});
   
-
+  // Initialize the MCP agent
   async init() {
     // Register tools from external file (mcp_tools.ts)
     registerTools(this);
     console.log('🔵',SERVER_NAME, 'Agent initialized, Version:', SERVER_VERSION);
 
   }
-}
-
-export interface Env {
-  PRIVY_APP_ID: string;
-  PRIVY_APP_SECRET: string;
-  AUTH_PRIVATE_KEY: string; // PEM key for signing
-  QUORUM_ID: string;
-  MCP_OBJECT: DurableObjectNamespace<MCPrivy>;
-  OAUTH_KV: KVNamespace;
-  ASSETS: Fetcher;
-  privyUser?: any;
 }
 
 // Hono App
