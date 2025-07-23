@@ -46,7 +46,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 	app.get('/authorize', async (c) => {
 	  try {
 		  const url = new URL(c.req.url);
-		  const indexRequest = new Request(url.origin + '/index.html');
+		  const indexRequest = new Request(url.origin + '/dist/index.html');
 		  const asset = await c.env.ASSETS.fetch(indexRequest);
 		  
 		  if (asset.ok) {
