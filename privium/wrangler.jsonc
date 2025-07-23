@@ -32,7 +32,7 @@
     	}
   	],
 	"assets": {
-	  "directory": "../frontend-privium/dist/client", // Updated to point to dist/client
+	  "directory": "frontend/dist", // Updated to point to dist/client
 	  "binding": "ASSETS",
 	  "not_found_handling": "single-page-application"
 	},
