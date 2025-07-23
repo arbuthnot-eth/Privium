@@ -179,11 +179,10 @@ function AuthorizeHandler({ authParams }: { authParams: { client_id: string | nu
       if (authParams.state) redirectUrl.searchParams.set('state', authParams.state);
       console.log('🔴 OAUTH: Redirecting with access_denied error to:', redirectUrl.toString());
       window.location.href = redirectUrl.toString();
-    } else {
-      // Optionally close window or show message
-      console.log('🔴 OAUTH: No redirect URI, closing window');
-      window.close();
     }
+    // Always attempt to close the window after the redirect, or directly if no redirect URI
+    console.log('🔴 OAUTH: Attempting to close window...');
+    window.close();
   };
 
   if (!ready) return <div>Loading...</div>;
