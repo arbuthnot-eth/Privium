@@ -8,7 +8,7 @@
 		"start": "wrangler dev --local-protocol=https",
 		"cf-typegen": "wrangler types",
 		"type-check": "tsc --noEmit",
-		"build": "cd frontend && npm run build"
+		"build": "cd frontend && npm install && npm run build"
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.16.0",
