@@ -1,5 +1,5 @@
 import { usePrivy, useLogout, useLogin, getAccessToken, useIdentityToken } from '@privy-io/react-auth';
-import { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 
 function LogoutButton() {
   const { logout } = useLogout({
