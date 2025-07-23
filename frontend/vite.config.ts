@@ -6,7 +6,11 @@ import { singleFileCompression } from "vite-plugin-singlefile-compression";
 export default defineConfig({
   plugins: [react(), singleFileCompression()],
   build: {
+    target: 'es2020', // Ensure modern ES features are preserved
     rollupOptions: {
+      output: {
+        format: 'es', // Explicitly set output format to ES modules
+      },
       onwarn(warning, warn) {
         // Suppress all warnings from node_modules
         if (warning.loc?.file?.includes('node_modules')) {
