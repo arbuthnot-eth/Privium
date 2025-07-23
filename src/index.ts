@@ -16,7 +16,6 @@ export class MCPrivy extends McpAgent<Env, DurableObjectState, {}> {
     // Register tools from external file (mcp_tools.ts)
     registerTools(this);
     console.log('🔵',SERVER_NAME, 'Agent initialized, Version:', SERVER_VERSION);
-
   }
 }
 

@@ -2,9 +2,16 @@
 	"name": "Privium",
 	"version": "0.99.31",
 	"private": true,
+	"author": "Brandon Arbuthnot",
+	"license": "MIT",
+	"homepage": "https://github.com/arbuthnot-eth/privium",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/arbuthnot-eth/privium.git"
+	},
 	"scripts": {
-		"deploy": "wrangler deploy",
-		"dev": "wrangler dev",
+		"deploy": "wrangler deploy && npx oh-my-logo@latest \"Deploy\nSuccess\" matrix --filled",
+		"dev": "wrangler dev && npx oh-my-logo@latest \"Dev Env\nInactive\" fire --filled",
 		"start": "wrangler dev --local-protocol=https",
 		"cf-typegen": "wrangler types",
 		"type-check": "tsc --noEmit",

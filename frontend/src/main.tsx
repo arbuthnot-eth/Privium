@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import React from 'react';
 import { PrivyProvider } from '@privy-io/react-auth'
 import './index.css'
 import App from './App.tsx'
