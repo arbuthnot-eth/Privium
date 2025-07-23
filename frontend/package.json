@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "clear && npx oh-my-logo@latest \"Privium\" forest --filled && vite build"
+    "build": "vite build"
   },
   "dependencies": {
     "@privy-io/react-auth": "^2.18.1",
