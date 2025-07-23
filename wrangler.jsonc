@@ -49,4 +49,4 @@
 	"triggers": {
 	  "crons": ["0 * * * *"] // Every hour
 	}
-  }
+}
