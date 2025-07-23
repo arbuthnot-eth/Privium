@@ -48,7 +48,7 @@ app.get('/mcp', async (c) => {
 // MCP API with Bearer Token validation (POST requests)
 app.post('/mcp', requireAuth, async (c) => {
 	try {
-		return MCPrivy.serve('/mcp').fetch(c.req.raw, c.env, {} as ExecutionContext);
+		return MCPrivy.serve('/mcp').fetch(c.req.raw, c.env, c.executionCtx);
 	} catch (error) {
 		console.error('🔴 MCP ERROR: Request failed:', error);
 		return c.text('Internal Server Error', 500);
@@ -58,7 +58,7 @@ app.post('/mcp', requireAuth, async (c) => {
 // MCP API with Bearer Token validation (catch-all for other methods)
 app.all('/mcp/*', requireAuth, async (c) => {
 	try {
-		return MCPrivy.serve('/mcp').fetch(c.req.raw, c.env, {} as ExecutionContext);
+		return MCPrivy.serve('/mcp').fetch(c.req.raw, c.env, c.executionCtx);
 	} catch (error) {
 		console.error('🔴 MCP ERROR: Request failed:', error);
 		return c.text('Internal Server Error', 500);
