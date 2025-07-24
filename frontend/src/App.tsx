@@ -18,7 +18,7 @@ function LoginScreen() {
   });
   return (
     <div style={{ textAlign: 'center', padding: '2rem' }}>
-      <h1>Welcome to Privium</h1>
+      <h1>Privium MCP Server</h1>
       <p>Please sign in to continue</p>
       <button onClick={login} style={{ padding: '12px 24px', fontSize: '16px', cursor: 'pointer' }}>
         Sign In
@@ -27,8 +27,10 @@ function LoginScreen() {
   );
 }
 
-function CopyToClipboardButton({ textToCopy }: { textToCopy: string }) {
+function CopyToClipboardButton({ textToCopy, buttonText = 'Copy', highlightTargetId }: { textToCopy: string; buttonText?: string; highlightTargetId?: string }) {
   const [isCopied, setIsCopied] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  
   const handleCopyClick = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(textToCopy);
@@ -38,10 +40,344 @@ function CopyToClipboardButton({ textToCopy }: { textToCopy: string }) {
       console.error('Failed to copy text: ', err);
     }
   }, [textToCopy]);
+  
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+    if (highlightTargetId) {
+      const target = document.getElementById(highlightTargetId);
+      if (target) {
+        target.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
+        target.style.color = '#ffffff';
+        target.style.padding = '2px 4px';
+        target.style.borderRadius = '3px';
+        target.style.boxShadow = '0 0 5px rgba(255, 255, 255, 0.5)';
+      }
+    }
+  };
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    if (highlightTargetId) {
+      const target = document.getElementById(highlightTargetId);
+      if (target) {
+        target.style.backgroundColor = '';
+        target.style.color = '';
+        target.style.padding = '';
+        target.style.borderRadius = '';
+        target.style.boxShadow = '';
+      }
+    }
+  };
+  
   return (
-    <button onClick={handleCopyClick} style={{ marginLeft: '10px', padding: '5px 10px', fontSize: '14px', cursor: 'pointer' }}>
-      {isCopied ? 'Copied!' : 'Copy'}
+    <button
+      onClick={handleCopyClick}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      style={{
+        padding: '5px 10px',
+        fontSize: '14px',
+        cursor: 'pointer',
+        backgroundColor: isHovered ? '#0056b3' : '#007bff',
+        color: 'white',
+        border: 'none',
+        borderRadius: '4px'
+      }}
+    >
+      {isCopied ? 'Copied!' : buttonText}
     </button>
+  );
+}
+
+function BearerTokenGenerator() {
+  const { authenticated, getAccessToken: getPrivyAccessToken, user } = usePrivy();
+  const { identityToken } = useIdentityToken();
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [bearerTokenInfo, setBearerTokenInfo] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [clientId, setClientId] = useState<string | null>(null);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+
+  // Generate PKCE parameters
+  const generatePKCE = () => {
+    const codeVerifier = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+    
+    const encoder = new TextEncoder();
+    const data = encoder.encode(codeVerifier);
+    return crypto.subtle.digest('SHA-256', data).then(hash => {
+      const hashArray = Array.from(new Uint8Array(hash));
+      const base64Digest = btoa(String.fromCharCode(...hashArray))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+      return { codeVerifier, codeChallenge: base64Digest };
+    });
+  };
+
+  // Register client with the server
+  const registerClient = async () => {
+    const response = await fetch('/reg', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        redirect_uris: [`${window.location.origin}/authorize`]
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to register client: ${response.status} - ${errorText}`);
+    }
+    
+    const data = await response.json();
+    return { clientId: data.client_id, clientSecret: data.client_secret };
+  };
+
+  // Exchange authorization code for tokens
+  const exchangeToken = async (authorizationCode: string, codeVerifier: string, clientIdParam: string) => {
+    console.log('exchangeToken called with:', { authorizationCode, codeVerifier, clientIdParam });
+    if (!clientIdParam) {
+      throw new Error('Client ID is required for token exchange');
+    }
+    if (!authorizationCode) {
+      throw new Error('Authorization code is required for token exchange');
+    }
+    if (!codeVerifier) {
+      throw new Error('Code verifier is required for token exchange');
+    }
+    
+    const params = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code: authorizationCode,
+      redirect_uri: `${window.location.origin}/authorize`,
+      client_id: clientIdParam,
+      code_verifier: codeVerifier,
+    });
+
+    console.log('Sending token exchange request with params:', Object.fromEntries(params));
+    const response = await fetch('/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: params.toString(),
+    });
+    console.log('Token exchange response status:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Token exchange failed with response:', errorText);
+      throw new Error(`Failed to exchange token: ${response.status} - ${errorText}`);
+    }
+
+    const responseData = await response.json();
+    console.log('Token exchange successful, received data:', responseData);
+    return responseData;
+  };
+
+  const generateBearerToken = async () => {
+    if (!authenticated) {
+      setError('You must be logged in to generate a bearer token');
+      return;
+    }
+
+    if (!identityToken) {
+      setError('Identity token not available');
+      return;
+    }
+
+    setIsGenerating(true);
+    setError(null);
+    setBearerTokenInfo(null);
+    setClientId(null);
+    setClientSecret(null);
+
+    try {
+      // Step 1: Register client
+      console.log('Step 1: Registering client...');
+      const { clientId: newClientId, clientSecret: newClientSecret } = await registerClient();
+      if (!newClientId) {
+        throw new Error('Failed to register client - no client ID returned');
+      }
+      setClientId(newClientId);
+      setClientSecret(newClientSecret);
+      console.log('Client registered:', newClientId);
+
+      // Step 2: Generate PKCE parameters
+      console.log('Step 2: Generating PKCE parameters...');
+      const { codeVerifier, codeChallenge } = await generatePKCE();
+      if (!codeVerifier || !codeChallenge) {
+        throw new Error('Failed to generate PKCE parameters');
+      }
+      console.log('PKCE generated');
+
+      // Step 3: Get Privy tokens
+      console.log('Step 3: Getting Privy tokens...');
+      const accessToken = await getPrivyAccessToken();
+      if (!accessToken) {
+        throw new Error('Failed to get access token from Privy');
+      }
+      console.log('Privy tokens obtained');
+
+      // Step 4: Complete authorization with Privy tokens
+      console.log('Step 4: Completing authorization...');
+      const completeAuthResponse = await fetch('/complete-authorize', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          client_id: newClientId,
+          redirect_uri: `${window.location.origin}/authorize`,
+          scope: 'mcp',
+          response_type: 'code',
+          code_challenge: codeChallenge,
+          code_challenge_method: 'S256',
+          resource: `${window.location.origin}/mcp`,
+          accessToken: accessToken,
+          idToken: identityToken,
+        }),
+      });
+
+      if (!completeAuthResponse.ok) {
+        const errorText = await completeAuthResponse.text();
+        throw new Error(`Failed to complete authorization: ${completeAuthResponse.status} - ${errorText}`);
+      }
+
+      const authData = await completeAuthResponse.json();
+      console.log('Authorization completed, redirecting to:', authData.redirectTo);
+
+      // Extract authorization code from redirect URL
+      const redirectUrl = new URL(authData.redirectTo);
+      const authorizationCode = redirectUrl.searchParams.get('code');
+      
+      if (!authorizationCode) {
+        throw new Error('Authorization code not found in redirect URL');
+      }
+
+      console.log('Authorization code obtained:', authorizationCode);
+      console.log('Client ID for token exchange:', newClientId);
+      console.log('Code verifier for token exchange:', codeVerifier);
+
+      // Step 5: Exchange authorization code for bearer token
+      console.log('Step 5: Exchanging authorization code for bearer token...');
+      const tokenData = await exchangeToken(authorizationCode, codeVerifier, newClientId);
+      console.log('Token exchange completed');
+
+      // Step 6: Format the response as requested
+      const baseUrl = window.location.origin;
+      const tokenInfo = {
+        Privium: {
+          type: "streamable-http",
+          url: `${baseUrl}/mcp`,
+          headers: {
+            authorization: `Bearer ${tokenData.access_token}`
+          }
+        }
+      };
+      
+      setBearerTokenInfo(tokenInfo);
+      console.log('Bearer token generation completed successfully');
+    } catch (err) {
+      console.error('Error generating bearer token:', err);
+      setError(err instanceof Error ? err.message : 'Failed to generate bearer token');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  return (
+    <div style={{
+      backgroundColor: '#2a2a2a',
+      border: '1px solid #404040',
+      borderRadius: '8px',
+      padding: '20px',
+      marginTop: '20px',
+      textAlign: 'center',
+      color: '#ffffff'
+    }}>
+      <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginBottom: '20px' }}>
+        <button
+          onClick={generateBearerToken}
+          disabled={isGenerating || !authenticated}
+          style={{
+            padding: '10px 20px',
+            fontSize: '16px',
+            cursor: isGenerating || !authenticated ? 'not-allowed' : 'pointer',
+            backgroundColor: isGenerating || !authenticated ? '#ccc' : '#007bff',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            opacity: isGenerating || !authenticated ? 0.6 : 1
+          }}
+        >
+          {isGenerating ? 'Generating...' : 'Generate Bearer Token'}
+        </button>
+        <LogoutButton />
+      </div>
+
+      {error && (
+        <div style={{
+          color: '#ff6b6b',
+          marginTop: '10px',
+          padding: '10px',
+          backgroundColor: '#3a1a1a',
+          borderRadius: '4px',
+          border: '1px solid #ff6b6b'
+        }}>
+          Error: {error}
+        </div>
+      )}
+
+      {bearerTokenInfo && (
+        <div style={{
+          marginTop: '20px',
+          padding: '15px',
+          backgroundColor: '#1a2a1a',
+          borderRadius: '4px',
+          textAlign: 'left',
+          border: '1px solid #4caf50'
+        }}>
+          <h4 style={{ color: '#4caf50', margin: '0 0 10px 0' }}>Bearer Token Information:</h4>
+          <div style={{
+            backgroundColor: '#0a1a0a',
+            padding: '10px',
+            borderRadius: '4px',
+            overflowX: 'auto',
+            fontSize: '14px',
+            color: '#aaffaa',
+            margin: '10px 0',
+            fontFamily: 'monospace',
+            whiteSpace: 'pre-wrap'
+          }}>
+            {bearerTokenInfo && (
+              <>
+                <div>{'{'}</div>
+                <div>&nbsp;&nbsp;"Privium": {'{'}</div>
+                <div>&nbsp;&nbsp;&nbsp;&nbsp;"type": "streamable-http",</div>
+                <div>&nbsp;&nbsp;&nbsp;&nbsp;"url": "{bearerTokenInfo.Privium.url}",</div>
+                <div>&nbsp;&nbsp;&nbsp;&nbsp;"headers": {'{'}</div>
+                <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"authorization": "Bearer <span id="bearer-token-value">{bearerTokenInfo.Privium.headers.authorization.replace('Bearer ', '')}</span>"</div>
+                <div>&nbsp;&nbsp;&nbsp;&nbsp;{'}'}</div>
+                <div>&nbsp;&nbsp;{'}'}</div>
+                <div>{'}'}</div>
+              </>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+            <CopyToClipboardButton textToCopy={JSON.stringify(bearerTokenInfo, null, 2)} buttonText="Copy JSON" />
+            <CopyToClipboardButton
+              textToCopy={bearerTokenInfo.Privium.headers.authorization.replace('Bearer ', '')}
+              buttonText="Copy Token"
+              highlightTargetId="bearer-token-value"
+            />
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -334,18 +670,9 @@ function AuthorizeHandler({ authParams }: { authParams: { client_id: string | nu
 
 export default function App() {
   const { ready, authenticated, user } = usePrivy();
-  const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isAuthorizeMode, setIsAuthorizeMode] = useState(false);
   const [authParams, setAuthParams] = useState<{ client_id: string | null; redirect_uri: string | null; scope: string | null; state: string | null; response_type: string | null; code_challenge: string | null; code_challenge_method: string | null; resource: string | null } | null>(null);
 
-  useEffect(() => {
-    if (ready && authenticated) {
-      getAccessToken().then(token => {
-        setAccessToken(token);
-      });
-    }
-  }, [ready, authenticated]);
-  
   useEffect(() => {
     if (window.location.pathname === '/authorize') {
       setIsAuthorizeMode(true);
@@ -378,12 +705,12 @@ export default function App() {
   if (ready && authenticated) {
       return (
         <div style={{ textAlign: 'center', padding: '2rem' }}>
-          <h1>Welcome to Privium</h1>
+          <h1>Privium MCP Server</h1>
           <p>User {user?.id} is logged in.</p>
-          <LogoutButton />
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '1rem' }}>
-            <p style={{ margin: 0 }}>Access Token: {accessToken ? `${accessToken.substring(0, 20)}...` : 'N/A'}</p>
-            {accessToken && <CopyToClipboardButton textToCopy={accessToken} />}
+          </div>
+          <div style={{ marginTop: '1rem' }}>
+            <BearerTokenGenerator />
           </div>
         </div>
       );

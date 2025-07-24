@@ -1,6 +1,6 @@
 import { McpAgent } from "agents/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { registerTools } from "./mcp_tools";
+import { registerResources, registerTools } from "./mcp_tools";
 import { Hono } from 'hono';
 import { requireAuth, authHandler } from "./authMiddleware";
 
@@ -13,8 +13,9 @@ export class MCPrivy extends McpAgent<Env, DurableObjectState, {}> {
   
   // Initialize the MCP agent
   async init() {
-    // Register tools from external file (mcp_tools.ts)
+    // Register tools and resources from external file (mcp_tools.ts)
     registerTools(this);
+	registerResources(this);
     console.log('🔵',SERVER_NAME, 'Agent initialized, Version:', SERVER_VERSION);
   }
 }

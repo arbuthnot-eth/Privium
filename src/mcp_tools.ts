@@ -12,7 +12,7 @@ export function initPrivyClient(env: any): PrivyClient {
 
 export function registerTools(agent: any) {
 	const server = agent.server;
-	const toolList: { name: string; title: string; description: string }[] = [];
+
 	// Simple addition tool
 	server.registerTool(
 		"add",
@@ -28,8 +28,8 @@ export function registerTools(agent: any) {
 			content: [{ type: "text", text: String(a + b) }],
 		})
 	);
-	toolList.push({ name: "add", title: "Addition Tool", description: "A simple tool to add two numbers" });
 
+	// Greeting Tool
 	server.registerTool(
 		'greet',
 		{
@@ -43,8 +43,6 @@ export function registerTools(agent: any) {
 			return { content: [{ type: "text", text: `Hello, ${name}!` }] };
 		}
 	);
-	toolList.push({ name: "greet", title: "Greeting Tool", description: "A simple greeting tool" });
-	
 	
 	// Calculator tool with multiple operations
 	server.registerTool(
@@ -86,61 +84,6 @@ export function registerTools(agent: any) {
 			return { content: [{ type: "text", text: String(result) }] };
 		}
 	);
-	toolList.push({ name: "calculate", title: "Calculator Tool", description: "A tool to perform basic arithmetic operations" });
-
-
-	// Add a dynamic greeting resource
-	server.registerResource(
-		"greeting",
-		new ResourceTemplate("greeting://{name}", { list: undefined }),
-	    {
-			title: "Greeting Resource",      // Display name for UI
-			description: "Dynamic greeting generator"
-		},
-		async (uri: URL, extra: any) => { // Explicitly type uri and extra
-		    // Assuming 'name' is passed in the 'extra' object by the ResourceTemplate
-			const name = extra.name || 'Guest'; // Access name directly from extra
-		    return {
-			    contents: [{
-				    uri: uri.href,
-				    text: `Hello, ${name}!`
-				}]
-			};
-		}
-	);
-
-	// Add a simpler "me" resource for easy access
-	server.registerResource(
-		"Current User",
-		new ResourceTemplate("user://me", { list: undefined }),
-		{
-			title: "Current User",
-			description: "Fetches the current authenticated user's information"
-		},
-		async (uri: URL, extra: any) => {
-			try {
-				if (!agent.env.privyUser) {
-					throw new Error("User context not available");
-				}
-				const user = agent.env.privyUser;
-				return {
-					contents: [{
-						uri: uri.href,
-						mimeType: "application/json",
-						text: JSON.stringify(user, null, 2)
-					}]
-				};
-			} catch (error) {
-				return {
-					contents: [{
-						uri: uri.href,
-						mimeType: "application/json",
-						text: JSON.stringify({ error: "Failed to fetch current user" })
-					}]
-				};
-			}
-		}
-	);
 
 	// Add a tool to get user info easily (no URI needed)
 	server.registerTool(
@@ -177,9 +120,268 @@ export function registerTools(agent: any) {
 			}
 		}
 	);
-	toolList.push({ name: "get_user_info", title: "Get User Info", description: "Get current authenticated user information" });
 
-	// Add user resource  
+	// List Resources Tool
+	server.registerTool(
+		"list_resources", 
+		{
+			title: "List Resources",
+			description: "Shows available resources and how to access them",
+			inputSchema: {}
+		},
+		async () => {
+			const resourceList = [
+				{
+					name: "user://me",
+					description: "Complete user profile with all Privy data",
+					example: "Just type: user://me"
+				},
+				{
+					name: "user://[anything]/profile", 
+					description: "Structured user profile (clean format)",
+					example: "Try: user://current/profile"
+				},
+				{
+					name: "wallets://me",
+					description: "User's connected wallets",
+					example: "Just type: wallets://me"
+				}
+			];
+
+			const help = `🔗 **Available Resources**\n\n${resourceList.map(r => 
+				`**${r.name}**\n${r.description}\n💡 ${r.example}\n`
+			).join('\n')}\n📝 **How to use:** Go to Resources tab → Type URI → Click "Fetch Resource"`;
+
+			return { 
+				content: [{ 
+					type: "text", 
+					text: help
+				}] 
+			};
+		}
+	);
+
+	// Get User Wallets Tool
+	server.registerTool(
+		"get_user_wallets",
+		{
+			title: "Get User Wallets",
+			description: "Get all wallets connected to the current user",
+			inputSchema: {}
+		},
+		async () => {
+			try {
+				if (!agent.env.privyUser) {
+					return {
+						content: [{
+							type: "text",
+							text: "❌ User not authenticated"
+						}]
+					};
+				}
+
+				const user = agent.env.privyUser;
+				const wallets = user.linkedAccounts?.filter((acc: any) => acc.type === 'wallet') || [];
+				
+				if (wallets.length === 0) {
+					return {
+						content: [{
+							type: "text",
+							text: "📭 No wallets connected to this account"
+						}]
+					};
+				}
+
+				const walletInfo = wallets.map((wallet: any, index: number) => {
+					return `${index + 1}. **${wallet.address}**\n   📋 Type: ${wallet.walletClientType || 'Unknown'}\n   🌐 Chain: ${wallet.chainType || 'EVM'}\n   📅 Connected: ${wallet.addedOn ? new Date(wallet.addedOn).toLocaleDateString() : 'Unknown'}`;
+				}).join('\n\n');
+
+				return {
+					content: [{
+						type: "text",
+						text: `💼 **Connected Wallets** (${wallets.length})\n\n${walletInfo}`
+					}]
+				};
+			} catch (error) {
+				return {
+					content: [{
+						type: "text",
+						text: `❌ Error: ${error instanceof Error ? error.message : String(error)}`
+					}]
+				};
+			}
+		}
+	);
+
+	// Get Authentication Status Tool
+	server.registerTool(
+		"auth_status",
+		{
+			title: "Authentication Status",
+			description: "Check the current authentication status and session information",
+			inputSchema: {}
+		},
+		async () => {
+			try {
+				if (!agent.env.privyUser) {
+					return {
+						content: [{
+							type: "text",
+							text: "❌ Not authenticated"
+						}]
+					};
+				}
+
+				const user = agent.env.privyUser;
+				const now = Date.now();
+				const createdAt = new Date(user.createdAt).getTime();
+				const sessionAge = Math.floor((now - createdAt) / (1000 * 60 * 60 * 24)); // Days
+
+				return {
+					content: [{
+						type: "text",
+						text: `🔐 **Authentication Status**\n\n✅ **Authenticated**: Yes\n🆔 **User ID**: ${user.id}\n📧 **Email**: ${user.email?.address || 'Not set'}\n📅 **Account Created**: ${new Date(user.createdAt).toLocaleDateString()}\n⏱️ **Session Age**: ${sessionAge} days\n📱 **Linked Accounts**: ${user.linkedAccounts?.length || 0}\n\nUse \`user://me\` resource for full profile details.`
+					}]
+				};
+			} catch (error) {
+				return {
+					content: [{
+						type: "text",
+						text: `❌ Error: ${error instanceof Error ? error.message : String(error)}`
+					}]
+				};
+			}
+		}
+	);
+
+	// List Linked Accounts Tool
+	server.registerTool(
+		"list_linked_accounts",
+		{
+			title: "List Linked Accounts",
+			description: "List all accounts linked to the current user",
+			inputSchema: {}
+		},
+		async () => {
+			try {
+				if (!agent.env.privyUser) {
+					return {
+						content: [{
+							type: "text",
+							text: "❌ User not authenticated"
+						}]
+					};
+				}
+
+				const user = agent.env.privyUser;
+				const accounts = user.linkedAccounts || [];
+				
+				if (accounts.length === 0) {
+					return {
+						content: [{
+							type: "text",
+							text: "📭 No accounts linked to this user"
+						}]
+					};
+				}
+
+				const accountSummary = accounts.map((account: any, index: number) => {
+					const type = account.type;
+					let details = '';
+					
+					switch (type) {
+						case 'wallet':
+							details = `Address: ${account.address}\nClient: ${account.walletClientType || 'Unknown'}`;
+							break;
+						case 'email':
+							details = `Email: ${account.address}\nVerified: ${account.verified ? 'Yes' : 'No'}`;
+							break;
+						case 'phone':
+							details = `Phone: ${account.phoneCountryCode} ${account.phoneNumber}\nVerified: ${account.verified ? 'Yes' : 'No'}`;
+							break;
+						default:
+							details = `Details: ${JSON.stringify(account, null, 2)}`;
+					}
+					
+					return `${index + 1}. **${type.toUpperCase()}**\n   ${details.replace(/\n/g, '\n   ')}`;
+				}).join('\n\n');
+
+				return {
+					content: [{
+						type: "text",
+						text: `🔗 **Linked Accounts** (${accounts.length})\n\n${accountSummary}`
+					}]
+				};
+			} catch (error) {
+				return {
+					content: [{
+						type: "text",
+						text: `❌ Error: ${error instanceof Error ? error.message : String(error)}`
+					}]
+				};
+			}
+		}
+	);
+
+
+}
+
+export function registerResources(agent: any) {
+	const server = agent.server;
+	// Add a dynamic greeting resource
+	server.registerResource(
+			"greeting",
+			new ResourceTemplate("greeting://{name}", { list: undefined }),
+			{
+				title: "Greeting Resource",      // Display name for UI
+				description: "Dynamic greeting generator"
+			},
+			async (uri: URL, extra: any) => { // Explicitly type uri and extra
+				// Assuming 'name' is passed in the 'extra' object by the ResourceTemplate
+				const name = extra.name || 'Guest'; // Access name directly from extra
+				return {
+					contents: [{
+						uri: uri.href,
+						text: `Hello, ${name}!`
+					}]
+				};
+			}
+	);
+	
+	// Add a simpler "me" resource for easy access
+	server.registerResource(
+			"Current User",
+			new ResourceTemplate("user://me", { list: undefined }),
+			{
+				title: "Current User",
+				description: "Fetches the current authenticated user's information"
+			},
+			async (uri: URL, extra: any) => {
+				try {
+					if (!agent.env.privyUser) {
+						throw new Error("User context not available");
+					}
+					const user = agent.env.privyUser;
+					return {
+						contents: [{
+							uri: uri.href,
+							mimeType: "application/json",
+							text: JSON.stringify(user, null, 2)
+						}]
+					};
+				} catch (error) {
+					return {
+						contents: [{
+							uri: uri.href,
+							mimeType: "application/json",
+							text: JSON.stringify({ error: "Failed to fetch current user" })
+						}]
+					};
+				}
+			}
+	);
+
+			// Add user resource  
 	server.registerResource(
 		"whoami",
 		new ResourceTemplate("user://me", { list: undefined }),
@@ -250,49 +452,5 @@ export function registerTools(agent: any) {
 		}
 	);
 
-	server.registerTool(
-		"list_resources", 
-		{
-			title: "List Resources",
-			description: "Shows available resources and how to access them",
-			inputSchema: {}
-		},
-		async () => {
-			const resourceList = [
-				{
-					name: "user://me",
-					description: "Complete user profile with all Privy data",
-					example: "Just type: user://me"
-				},
-				{
-					name: "user://[anything]/profile", 
-					description: "Structured user profile (clean format)",
-					example: "Try: user://current/profile"
-				},
-				{
-					name: "wallets://me",
-					description: "User's connected wallets",
-					example: "Just type: wallets://me"
-				}
-			];
-
-			const help = `🔗 **Available Resources**\n\n${resourceList.map(r => 
-				`**${r.name}**\n${r.description}\n💡 ${r.example}\n`
-			).join('\n')}\n📝 **How to use:** Go to Resources tab → Type URI → Click "Fetch Resource"`;
-
-			return { 
-				content: [{ 
-					type: "text", 
-					text: help
-				}] 
-			};
-		}
-	);
-
-		  // TODO: Add your own tools here, e.g., a "signMessage" tool that integrates with Privy/wallet logic
-		  // this.server.tool("signMessage", { message: z.string() }, async ({ message }) => {
-		  //   if (!this.env.userId) throw new Error("Unauthorized");
-		  //   ...
-		  // });
-
+	
 }
