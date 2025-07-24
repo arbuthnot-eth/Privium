@@ -5,7 +5,7 @@ import { Hono } from 'hono';
 import { requireAuth, authHandler } from "./authMiddleware";
 
 const SERVER_NAME = "Privium";
-const SERVER_VERSION = "0.99.33";
+const SERVER_VERSION = "0.99.4";
 
 // Define our MCP agent with version and register tools
 export class MCPrivy extends McpAgent<Env, DurableObjectState, {}> {

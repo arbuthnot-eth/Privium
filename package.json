@@ -1,6 +1,6 @@
 {
 	"name": "Privium",
-	"version": "0.99.31",
+	"version": "0.99.4",
 	"private": true,
 	"author": "Brandon Arbuthnot",
 	"license": "MIT",
@@ -15,7 +15,8 @@
 		"start": "wrangler dev --local-protocol=https",
 		"cf-typegen": "wrangler types",
 		"type-check": "tsc --noEmit",
-		"build": "cd frontend && npm install && npm run build"
+		"build": "cd frontend && npm install && npm run build",
+		"doc": "bash scripts/monorepo-doc.sh"
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.16.0",
