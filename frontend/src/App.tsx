@@ -443,7 +443,7 @@ function AuthorizeHandler({ authParams }: { authParams: { client_id: string | nu
         window.location.href = data.redirectTo;
         setTimeout(() => {
           window.close();
-        }, 4000);
+        }, 2400);
       })
       .catch((err) => {
         console.error('🔴 OAUTH ERROR: Authorization error:', err);
