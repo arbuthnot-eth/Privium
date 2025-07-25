@@ -1,21 +1,21 @@
-import { usePrivy, useLogout, useLogin, getAccessToken, useIdentityToken } from '@privy-io/react-auth';
-import React, { useState, useCallback, useEffect } from 'react';
+import { usePrivy, useLogout, useLogin, getAccessToken, useIdentityToken } from '@privy-io/react-auth'
+import { useState, useCallback, useEffect } from 'react'
 
 function LogoutButton() {
   const { logout } = useLogout({
     onSuccess: () => {
-      console.log('🔴 LOGOUT: User successfully logged out');
+      console.log('🔴 LOGOUT: User successfully logged out')
     }
-  });
-  return <button onClick={logout}>Log out</button>;
+  })
+  return <button onClick={logout}>Log out</button>
 }
 
 function LoginScreen() {
   const { login } = useLogin({
     onComplete: () => {
-      console.log('🟢 LOGIN: User successfully logged in (LoginScreen)');
+      console.log('🟢 LOGIN: User successfully logged in (LoginScreen)')
     }
-  });
+  })
   return (
     <div style={{ textAlign: 'center', padding: '2rem' }}>
       <h1>{APP_NAME} MCP Server</h1>
@@ -24,49 +24,49 @@ function LoginScreen() {
         Sign In
       </button>
     </div>
-  );
+  )
 }
 
 function CopyToClipboardButton({ textToCopy, buttonText = 'Copy', highlightTargetId }: { textToCopy: string; buttonText?: string; highlightTargetId?: string }) {
-  const [isCopied, setIsCopied] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
+  const [isCopied, setIsCopied] = useState(false)
+  const [isHovered, setIsHovered] = useState(false)
   
   const handleCopyClick = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(textToCopy);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
+      await navigator.clipboard.writeText(textToCopy)
+      setIsCopied(true)
+      setTimeout(() => setIsCopied(false), 2000)
     } catch (err) {
-      console.error('Failed to copy text: ', err);
+      console.error('Failed to copy text: ', err)
     }
-  }, [textToCopy]);
+  }, [textToCopy])
   
   const handleMouseEnter = () => {
-    setIsHovered(true);
+    setIsHovered(true)
     if (highlightTargetId) {
-      const target = document.getElementById(highlightTargetId);
+      const target = document.getElementById(highlightTargetId)
       if (target) {
-        target.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
-        target.style.color = '#ffffff';
-        target.style.padding = '2px 4px';
-        target.style.borderRadius = '3px';
-        target.style.boxShadow = '0 0 5px rgba(255, 255, 255, 0.5)';
+        target.style.backgroundColor = 'rgba(255, 255, 255, 0.3)'
+        target.style.color = '#ffffff'
+        target.style.padding = '2px 4px'
+        target.style.borderRadius = '3px'
+        target.style.boxShadow = '0 0 5px rgba(255, 255, 255, 0.5)'
       }
     }
-  };
+  }
   const handleMouseLeave = () => {
-    setIsHovered(false);
+    setIsHovered(false)
     if (highlightTargetId) {
-      const target = document.getElementById(highlightTargetId);
+      const target = document.getElementById(highlightTargetId)
       if (target) {
-        target.style.backgroundColor = '';
-        target.style.color = '';
-        target.style.padding = '';
-        target.style.borderRadius = '';
-        target.style.boxShadow = '';
+        target.style.backgroundColor = ''
+        target.style.color = ''
+        target.style.padding = ''
+        target.style.borderRadius = ''
+        target.style.boxShadow = ''
       }
     }
-  };
+  }
   
   return (
     <button
@@ -85,35 +85,35 @@ function CopyToClipboardButton({ textToCopy, buttonText = 'Copy', highlightTarge
     >
       {isCopied ? 'Copied!' : buttonText}
     </button>
-  );
+  )
 }
 
 function BearerTokenGenerator() {
-  const { authenticated, getAccessToken: getPrivyAccessToken, user } = usePrivy();
-  const { identityToken } = useIdentityToken();
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [bearerTokenInfo, setBearerTokenInfo] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [clientId, setClientId] = useState<string | null>(null);
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const { authenticated, getAccessToken: getPrivyAccessToken, user } = usePrivy()
+  const { identityToken } = useIdentityToken()
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [bearerTokenInfo, setBearerTokenInfo] = useState<any>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [clientId, setClientId] = useState<string | null>(null)
+  const [clientSecret, setClientSecret] = useState<string | null>(null)
 
   // Generate PKCE parameters
   const generatePKCE = () => {
     const codeVerifier = Array.from(crypto.getRandomValues(new Uint8Array(32)))
       .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
+      .join('')
     
-    const encoder = new TextEncoder();
-    const data = encoder.encode(codeVerifier);
+    const encoder = new TextEncoder()
+    const data = encoder.encode(codeVerifier)
     return crypto.subtle.digest('SHA-256', data).then(hash => {
-      const hashArray = Array.from(new Uint8Array(hash));
+      const hashArray = Array.from(new Uint8Array(hash))
       const base64Digest = btoa(String.fromCharCode(...hashArray))
         .replace(/\+/g, '-')
         .replace(/\//g, '_')
-        .replace(/=/g, '');
-      return { codeVerifier, codeChallenge: base64Digest };
-    });
-  };
+        .replace(/=/g, '')
+      return { codeVerifier, codeChallenge: base64Digest }
+    })
+  }
 
   // Register client with the server
   const registerClient = async () => {
@@ -125,28 +125,28 @@ function BearerTokenGenerator() {
       body: JSON.stringify({
         redirect_uris: [`${window.location.origin}/authorize`]
       }),
-    });
+    })
     
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to register client: ${response.status} - ${errorText}`);
+      const errorText = await response.text()
+      throw new Error(`Failed to register client: ${response.status} - ${errorText}`)
     }
     
-    const data = await response.json();
-    return { clientId: data.client_id, clientSecret: data.client_secret };
-  };
+    const data: RegisterClientResponse = await response.json()
+    return { clientId: data.client_id, clientSecret: data.client_secret }
+  }
 
   // Exchange authorization code for tokens
   const exchangeToken = async (authorizationCode: string, codeVerifier: string, clientIdParam: string) => {
-    console.log('exchangeToken called with:', { authorizationCode, codeVerifier, clientIdParam });
+    console.log('exchangeToken called with:', { authorizationCode, codeVerifier, clientIdParam })
     if (!clientIdParam) {
-      throw new Error('Client ID is required for token exchange');
+      throw new Error('Client ID is required for token exchange')
     }
     if (!authorizationCode) {
-      throw new Error('Authorization code is required for token exchange');
+      throw new Error('Authorization code is required for token exchange')
     }
     if (!codeVerifier) {
-      throw new Error('Code verifier is required for token exchange');
+      throw new Error('Code verifier is required for token exchange')
     }
     
     const params = new URLSearchParams({
@@ -155,75 +155,75 @@ function BearerTokenGenerator() {
       redirect_uri: `${window.location.origin}/authorize`,
       client_id: clientIdParam,
       code_verifier: codeVerifier,
-    });
+    })
 
-    console.log('Sending token exchange request with params:', Object.fromEntries(params));
+    console.log('Sending token exchange request with params:', Object.fromEntries(params))
     const response = await fetch('/token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: params.toString(),
-    });
-    console.log('Token exchange response status:', response.status);
+    })
+    console.log('Token exchange response status:', response.status)
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Token exchange failed with response:', errorText);
-      throw new Error(`Failed to exchange token: ${response.status} - ${errorText}`);
+      const errorText = await response.text()
+      console.error('Token exchange failed with response:', errorText)
+      throw new Error(`Failed to exchange token: ${response.status} - ${errorText}`)
     }
 
-    const responseData = await response.json();
-    console.log('Token exchange successful, received data:', responseData);
-    return responseData;
-  };
+    const responseData: ExchangeTokenResponse = await response.json()
+    console.log('Token exchange successful, received data:', responseData)
+    return responseData
+  }
 
   const generateBearerToken = async () => {
     if (!authenticated) {
-      setError('You must be logged in to generate a bearer token');
-      return;
+      setError('You must be logged in to generate a bearer token')
+      return
     }
 
     if (!identityToken) {
-      setError('Identity token not available');
-      return;
+      setError('Identity token not available')
+      return
     }
 
-    setIsGenerating(true);
-    setError(null);
-    setBearerTokenInfo(null);
-    setClientId(null);
-    setClientSecret(null);
+    setIsGenerating(true)
+    setError(null)
+    setBearerTokenInfo(null)
+    setClientId(null)
+    setClientSecret(null)
 
     try {
       // Step 1: Register client
-      console.log('Step 1: Registering client...');
-      const { clientId: newClientId, clientSecret: newClientSecret } = await registerClient();
+      console.log('Step 1: Registering client...')
+      const { clientId: newClientId, clientSecret: newClientSecret } = await registerClient()
       if (!newClientId) {
-        throw new Error('Failed to register client - no client ID returned');
+        throw new Error('Failed to register client - no client ID returned')
       }
-      setClientId(newClientId);
-      setClientSecret(newClientSecret);
-      console.log('Client registered:', newClientId);
+      setClientId(newClientId)
+      setClientSecret(newClientSecret)
+      console.log('Client registered:', newClientId)
 
       // Step 2: Generate PKCE parameters
-      console.log('Step 2: Generating PKCE parameters...');
-      const { codeVerifier, codeChallenge } = await generatePKCE();
+      console.log('Step 2: Generating PKCE parameters...')
+      const { codeVerifier, codeChallenge } = await generatePKCE()
       if (!codeVerifier || !codeChallenge) {
-        throw new Error('Failed to generate PKCE parameters');
+        throw new Error('Failed to generate PKCE parameters')
       }
-      console.log('PKCE generated');
+      console.log('PKCE generated')
 
       // Step 3: Get Privy tokens
-      console.log('Step 3: Getting Privy tokens...');
-      const accessToken = await getPrivyAccessToken();
+      console.log('Step 3: Getting Privy tokens...')
+      const accessToken = await getPrivyAccessToken()
       if (!accessToken) {
-        throw new Error('Failed to get access token from Privy');
+        throw new Error('Failed to get access token from Privy')
       }
-      console.log('Privy tokens obtained');
+      console.log('Privy tokens obtained')
 
       // Step 4: Complete authorization with Privy tokens
-      console.log('Step 4: Completing authorization...');
+      console.log('Step 4: Completing authorization...')
       const completeAuthResponse = await fetch('/complete-authorize', {
         method: 'POST',
         headers: {
@@ -240,35 +240,35 @@ function BearerTokenGenerator() {
           accessToken: accessToken,
           idToken: identityToken,
         }),
-      });
+      })
 
       if (!completeAuthResponse.ok) {
-        const errorText = await completeAuthResponse.text();
-        throw new Error(`Failed to complete authorization: ${completeAuthResponse.status} - ${errorText}`);
+        const errorText = await completeAuthResponse.text()
+        throw new Error(`Failed to complete authorization: ${completeAuthResponse.status} - ${errorText}`)
       }
 
-      const authData = await completeAuthResponse.json();
-      console.log('Authorization completed, redirecting to:', authData.redirectTo);
+      const authData: CompleteAuthResponse = await completeAuthResponse.json()
+      console.log('Authorization completed, redirecting to:', authData.redirectTo)
 
       // Extract authorization code from redirect URL
-      const redirectUrl = new URL(authData.redirectTo);
-      const authorizationCode = redirectUrl.searchParams.get('code');
+      const redirectUrl = new URL(authData.redirectTo)
+      const authorizationCode = redirectUrl.searchParams.get('code')
       
       if (!authorizationCode) {
-        throw new Error('Authorization code not found in redirect URL');
+        throw new Error('Authorization code not found in redirect URL')
       }
 
-      console.log('Authorization code obtained:', authorizationCode);
-      console.log('Client ID for token exchange:', newClientId);
-      console.log('Code verifier for token exchange:', codeVerifier);
+      console.log('Authorization code obtained:', authorizationCode)
+      console.log('Client ID for token exchange:', newClientId)
+      console.log('Code verifier for token exchange:', codeVerifier)
 
       // Step 5: Exchange authorization code for bearer token
-      console.log('Step 5: Exchanging authorization code for bearer token...');
-      const tokenData = await exchangeToken(authorizationCode, codeVerifier, newClientId);
-      console.log('Token exchange completed');
+      console.log('Step 5: Exchanging authorization code for bearer token...')
+      const tokenData = await exchangeToken(authorizationCode, codeVerifier, newClientId)
+      console.log('Token exchange completed')
 
       // Step 6: Format the response as requested
-      const baseUrl = window.location.origin;
+      const baseUrl = window.location.origin
       const tokenInfo = {
         [APP_NAME]: {
           type: "streamable-http",
@@ -277,17 +277,17 @@ function BearerTokenGenerator() {
             authorization: `Bearer ${tokenData.access_token}`
           }
         }
-      };
+      }
       
-      setBearerTokenInfo(tokenInfo);
-      console.log('Bearer token generation completed successfully');
+      setBearerTokenInfo(tokenInfo)
+      console.log('Bearer token generation completed successfully')
     } catch (err) {
-      console.error('Error generating bearer token:', err);
-      setError(err instanceof Error ? err.message : 'Failed to generate bearer token');
+      console.error('Error generating bearer token:', err)
+      setError(err instanceof Error ? err.message : 'Failed to generate bearer token')
     } finally {
-      setIsGenerating(false);
+      setIsGenerating(false)
     }
-  };
+  }
 
   return (
     <div style={{
@@ -378,43 +378,43 @@ function BearerTokenGenerator() {
         </div>
       )}
     </div>
-  );
+  )
 }
 
 function AuthorizeHandler({ authParams }: { authParams: { client_id: string | null; redirect_uri: string | null; scope: string | null; state: string | null; response_type: string | null; code_challenge: string | null; code_challenge_method: string | null; resource: string | null } }) {
-  const { ready, authenticated, user } = usePrivy();
-  const { identityToken } = useIdentityToken();
+  const { ready, authenticated, user } = usePrivy()
+  const { identityToken } = useIdentityToken()
   const { login } = useLogin({
     onComplete: () => {
-      console.log('🟢 OAUTH LOGIN: User successfully logged in for authorization');
+      console.log('🟢 OAUTH LOGIN: User successfully logged in for authorization')
     },
-  });
+  })
   const { logout } = useLogout({
     onSuccess: () => {
-      console.log('🔴 OAUTH LOGOUT: User logged out to switch accounts');
+      console.log('🔴 OAUTH LOGOUT: User logged out to switch accounts')
     }
-  });
-  const [processing, setProcessing] = useState(false);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+  })
+  const [processing, setProcessing] = useState(false)
+  const [accessToken, setAccessToken] = useState<string | null>(null)
 
   useEffect(() => {
-    console.log('🔵 OAUTH AUTH STATE: ready:', ready, 'authenticated:', authenticated);
+    console.log('🔵 OAUTH AUTH STATE: ready:', ready, 'authenticated:', authenticated)
     if (ready && authenticated) {
-      console.log('🔵 OAUTH AUTH STATE: Getting access token...');
+      console.log('🔵 OAUTH AUTH STATE: Getting access token...')
       getAccessToken().then(token => {
-        console.log('🔵 OAUTH AUTH STATE: Received access token:', !!token);
-        setAccessToken(token);
-      });
+        console.log('🔵 OAUTH AUTH STATE: Received access token:', !!token)
+        setAccessToken(token)
+      })
     }
-  }, [ready, authenticated]);
+  }, [ready, authenticated])
 
   const handleApprove = () => {
-    console.log('🟢 OAUTH: User clicked Grant Authorization');
-    console.log('🔵 OAUTH: Starting handleApprove with accessToken:', !!accessToken, 'redirect_uri:', authParams.redirect_uri);
-    if (!accessToken || !authParams.redirect_uri || processing) return;
-    setProcessing(true);
-    const backendUrl = '/complete-authorize';
-    console.log('🔵 OAUTH: Calling complete-authorize endpoint');
+    console.log('🟢 OAUTH: User clicked Grant Authorization')
+    console.log('🔵 OAUTH: Starting handleApprove with accessToken:', !!accessToken, 'redirect_uri:', authParams.redirect_uri)
+    if (!accessToken || !authParams.redirect_uri || processing) return
+    setProcessing(true)
+    const backendUrl = '/complete-authorize'
+    console.log('🔵 OAUTH: Calling complete-authorize endpoint')
     fetch(backendUrl, {
       method: 'POST',
       headers: {
@@ -434,40 +434,40 @@ function AuthorizeHandler({ authParams }: { authParams: { client_id: string | nu
       }),
     })
       .then((res) => {
-        if (!res.ok) throw new Error('Failed to complete authorization');
-        return res.json();
+        if (!res.ok) throw new Error('Failed to complete authorization')
+        return res.json() as Promise<CompleteAuthResponse>
       })
       .then((data) => {
-        console.log('🔵 OAUTH: Received redirect response:', data);
-        console.log('🔵 OAUTH: Redirecting to:', data.redirectTo);
-        window.location.href = data.redirectTo;
+        console.log('🔵 OAUTH: Received redirect response:', data)
+        console.log('🔵 OAUTH: Redirecting to:', data.redirectTo)
+        window.location.href = data.redirectTo
         setTimeout(() => {
-          window.close();
-        }, 2400);
+          window.close()
+        }, 2400)
       })
       .catch((err) => {
-        console.error('🔴 OAUTH ERROR: Authorization error:', err);
-        setProcessing(false);
-      });
-  };
+        console.error('🔴 OAUTH ERROR: Authorization error:', err)
+        setProcessing(false)
+      })
+  }
 
   const handleCancel = () => {
-    console.log('🔴 OAUTH: User clicked Deny Access');
+    console.log('🔴 OAUTH: User clicked Deny Access')
     if (authParams.redirect_uri) {
-      const redirectUrl = new URL(authParams.redirect_uri);
-      redirectUrl.searchParams.set('error', 'access_denied');
-      if (authParams.state) redirectUrl.searchParams.set('state', authParams.state);
-      console.log('🔴 OAUTH: Redirecting with access_denied error to:', redirectUrl.toString());
-      window.location.href = redirectUrl.toString();
+      const redirectUrl = new URL(authParams.redirect_uri)
+      redirectUrl.searchParams.set('error', 'access_denied')
+      if (authParams.state) redirectUrl.searchParams.set('state', authParams.state)
+      console.log('🔴 OAUTH: Redirecting with access_denied error to:', redirectUrl.toString())
+      window.location.href = redirectUrl.toString()
     }
-    console.log('🔴 OAUTH: Attempting to close window...');
-    window.close();
-  };
+    console.log('🔴 OAUTH: Attempting to close window...')
+    window.close()
+  }
 
-  if (!ready) return <div>Loading...</div>;
+  if (!ready) return <div>Loading...</div>
 
   if (authParams.response_type !== 'code') {
-    return <div>Unsupported response type. Only 'code' is supported.</div>;
+    return <div>Unsupported response type. Only 'code' is supported.</div>
   }
 
   if (!authenticated) {
@@ -479,7 +479,7 @@ function AuthorizeHandler({ authParams }: { authParams: { client_id: string | nu
           Sign In
         </button>
       </div>
-    );
+    )
   }
 
   if (processing) return (
@@ -510,33 +510,33 @@ function AuthorizeHandler({ authParams }: { authParams: { client_id: string | nu
         </p>
       </div>
     </div>
-  );
+  )
 
   const authDialogStyle = `
     :root {
-      --bg-color: light-dark(#ffffff, #1a1a1a);
-      --card-bg: light-dark(#ffffff, #2a2a2a);
-      --text-color: light-dark(#1a1a1a, #ffffff);
-      --text-secondary: light-dark(#666666, #999999);
-      --border-color: light-dark(#e1e5e9, #404040);
-      --button-primary: light-dark(#007bff, #0d6efd);
-      --button-primary-hover: light-dark(#0056b3, #0b5ed7);
-      --button-secondary: light-dark(#6c757d, #6c757d);
-      --button-secondary-hover: light-dark(#545b62, #5a6268);
+      --bg-color: light-dark(#ffffff, #1a1a1a)
+      --card-bg: light-dark(#ffffff, #2a2a2a)
+      --text-color: light-dark(#1a1a1a, #ffffff)
+      --text-secondary: light-dark(#666666, #999999)
+      --border-color: light-dark(#e1e5e9, #404040)
+      --button-primary: light-dark(#007bff, #0d6efd)
+      --button-primary-hover: light-dark(#0056b3, #0b5ed7)
+      --button-secondary: light-dark(#6c757d, #6c757d)
+      --button-secondary-hover: light-dark(#545b62, #5a6268)
     }
 
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg-color: #1a1a1a;
-        --card-bg: #2a2a2a;
-        --text-color: #ffffff;
-        --text-secondary: #999999;
-        --border-color: #404040;
-        --button-primary: #0d6efd;
-        --button-primary-hover: #0b5ed7;
+        --bg-color: #1a1a1a
+        --card-bg: #2a2a2a
+        --text-color: #ffffff
+        --text-secondary: #999999
+        --border-color: #404040
+        --button-primary: #0d6efd
+        --button-primary-hover: #0b5ed7
       }
     }
-  `;
+  `
 
   return (
     <>
@@ -665,18 +665,18 @@ function AuthorizeHandler({ authParams }: { authParams: { client_id: string | nu
         </div>
       </div>
     </>
-  );
+  )
 }
 
 export default function App() {
-  const { ready, authenticated, user } = usePrivy();
-  const [isAuthorizeMode, setIsAuthorizeMode] = useState(false);
-  const [authParams, setAuthParams] = useState<{ client_id: string | null; redirect_uri: string | null; scope: string | null; state: string | null; response_type: string | null; code_challenge: string | null; code_challenge_method: string | null; resource: string | null } | null>(null);
+  const { ready, authenticated, user } = usePrivy()
+  const [isAuthorizeMode, setIsAuthorizeMode] = useState(false)
+  const [authParams, setAuthParams] = useState<{ client_id: string | null; redirect_uri: string | null; scope: string | null; state: string | null; response_type: string | null; code_challenge: string | null; code_challenge_method: string | null; resource: string | null } | null>(null)
 
   useEffect(() => {
     if (window.location.pathname === '/authorize') {
-      setIsAuthorizeMode(true);
-      const params = new URLSearchParams(window.location.search);
+      setIsAuthorizeMode(true)
+      const params = new URLSearchParams(window.location.search)
       setAuthParams({
         client_id: params.get('client_id'),
         redirect_uri: params.get('redirect_uri'),
@@ -686,20 +686,20 @@ export default function App() {
         code_challenge: params.get('code_challenge'),
         code_challenge_method: params.get('code_challenge_method'),
         resource: params.get('resource') || window.location.origin + '/mcp',
-      });
+      })
     }
-  }, []);
+  }, [])
   
   if (!ready) {
-      return <>Loading</>;
+      return <>Loading</>
   }
   
   if (isAuthorizeMode && authParams) {
-    return <AuthorizeHandler authParams={authParams} />;
+    return <AuthorizeHandler authParams={authParams} />
   }
   
   if (ready && !authenticated) {
-      return <LoginScreen />;
+      return <LoginScreen />
   }
   
   if (ready && authenticated) {
@@ -713,7 +713,7 @@ export default function App() {
             <BearerTokenGenerator />
           </div>
         </div>
-      );
+      )
   }
-  return null;
+  return null
 }

@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { singleFileCompression } from "vite-plugin-singlefile-compression";
+import { singleFileCompression } from "vite-plugin-singlefile-compression"
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -20,10 +20,10 @@ export default defineConfig({
       onwarn(warning, warn) {
         // Suppress all warnings from node_modules
         if (warning.loc?.file?.includes('node_modules')) {
-          return;
+          return
         }
         // Pass other warnings through
-        warn(warning);
+        warn(warning)
       },
     },
   },

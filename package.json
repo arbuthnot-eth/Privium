@@ -1,6 +1,6 @@
 {
 	"name": "Privium",
-	"version": "0.99.14",
+	"version": "0.99.15",
 	"type": "module",
 	"private": true,
 	"author": "Brandon Arbuthnot",
@@ -15,7 +15,8 @@
 		"build": "npm run rename &&cd frontend && npm install && npm run build",
 		"doc": "bash scripts/monorepo-doc.sh",
 		"up-version": "scripts/set-version.sh",
-		"rename": "scripts/set-name.sh"
+		"rename": "scripts/set-name.sh",
+		"inspector": "npx @modelcontextprotocol/inspector@latest"
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.16.0",
