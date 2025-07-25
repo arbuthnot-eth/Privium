@@ -5,6 +5,7 @@ Button to add Privium remote mcp to Cursor
 
 [![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/install-mcp?name=Privium&config=eyJ1cmwiOiJodHRwczovL3ByaXZpdW0uaW1iaWJlZC53b3JrZXJzLmRldi9tY3AifQ==)
 
+
 # Privium - Authenticated MCP Server with Privy Integration
 
 Privium is a secure Model Context Protocol (MCP) server that provides authenticated access to tools and resources with Privy wallet integration. Unlike the basic MCP server examples, Privium implements a full OAuth 2.1 flow with PKCE for secure client authentication.
@@ -70,12 +71,27 @@ To run this project, you'll need to set up the following environment variables i
 
 ## Connecting MCP Clients
 
-### Cloudflare AI Playground
+### Cursor
 
-1. Go to https://playground.ai.cloudflare.com/
-2. Enter your deployed MCP server URL (`privium.<your-account>.workers.dev/mcp`)
-3. Complete the OAuth authorization flow when prompted
-4. Use your MCP tools directly from the playground!
+Remote: 
+[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/install-mcp?name=Privium&config=eyJ1cmwiOiJodHRwczovL3ByaXZpdW0uaW1iaWJlZC53b3JrZXJzLmRldi9tY3AifQ==)
+
+Local:
+[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/install-mcp?name=Privium(local)&config=eyJ1cmwiOiJodHRwOi8vbG9jYWxob3N0Ojg3ODcvbWNwIn0%3D)
+
+To connect to Privium from Cursor, you can use either the remote or local server:
+
+```json
+{
+  "Privium": {
+    "url": "https://privium.imbibed.workers.dev/mcp"
+  },
+  "Privium_local": {
+    "url": "http://localhost:8787/mcp"
+  }
+}
+```
+
 
 ### Claude Desktop
 
@@ -99,21 +115,6 @@ Update with this configuration:
 
 Restart Claude and you should see the tools become available.
 
-### Cursor
-
-To connect to Privium from Cursor, you can use either the remote or local server:
-
-```json
-{
-  "Privium": {
-    "url": "https://privium.imbibed.workers.dev/mcp"
-  },
-  "Privium_local": {
-    "url": "http://localhost:8787/mcp"
-  }
-}
-```
-
 ### Roo Code
 
 To connect to your local Privium server from Roo Code, add the following to your MCP configuration:
@@ -129,6 +130,7 @@ To connect to your local Privium server from Roo Code, add the following to your
   }
 }
 ```
+[Generate Token](https://privium.imbibed.workers.dev)
 
 ## Running Locally
 
