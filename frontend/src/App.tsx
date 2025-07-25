@@ -514,26 +514,26 @@ function AuthorizeHandler({ authParams }: { authParams: { client_id: string | nu
 
   const authDialogStyle = `
     :root {
-      --bg-color: light-dark(#ffffff, #1a1a1a)
-      --card-bg: light-dark(#ffffff, #2a2a2a)
-      --text-color: light-dark(#1a1a1a, #ffffff)
-      --text-secondary: light-dark(#666666, #999999)
-      --border-color: light-dark(#e1e5e9, #404040)
-      --button-primary: light-dark(#007bff, #0d6efd)
-      --button-primary-hover: light-dark(#0056b3, #0b5ed7)
-      --button-secondary: light-dark(#6c757d, #6c757d)
-      --button-secondary-hover: light-dark(#545b62, #5a6268)
+      --bg-color: light-dark(#ffffff, #1a1a1a);
+      --card-bg: light-dark(#ffffff, #2a2a2a);
+      --text-color: light-dark(#1a1a1a, #ffffff);
+      --text-secondary: light-dark(#666666, #999999);
+      --border-color: light-dark(#e1e5e9, #404040);
+      --button-primary: light-dark(#007bff, #0d6efd);
+      --button-primary-hover: light-dark(#0056b3, #0b5ed7);
+      --button-secondary: light-dark(#6c757d, #6c757d);
+      --button-secondary-hover: light-dark(#545b62, #5a6268);
     }
 
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg-color: #1a1a1a
-        --card-bg: #2a2a2a
-        --text-color: #ffffff
-        --text-secondary: #999999
-        --border-color: #404040
-        --button-primary: #0d6efd
-        --button-primary-hover: #0b5ed7
+        --bg-color: #1a1a1a;
+        --card-bg: #2a2a2a;
+        --text-color: #ffffff;
+        --text-secondary: #999999;
+        --border-color: #404040;
+        --button-primary: #0d6efd;
+        --button-primary-hover: #0b5ed7;
       }
     }
   `
