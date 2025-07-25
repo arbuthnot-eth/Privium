@@ -1,7 +1,23 @@
 import { z } from "zod";
-import { ResourceTemplate} from "@modelcontextprotocol/sdk/server/mcp.js";
 import { PrivyClient } from "@privy-io/server-auth";
+import { McpAgent } from "agents/mcp";
+import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { SERVER_NAME, SERVER_VERSION } from "./config";
 
+// Define our MCP agent with version and register tools
+export class SuperAgent extends McpAgent<Env, DurableObjectState, {}> {
+	server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION, description: SERVER_NAME + ' MCP Server', documentation: 'https://github.com/arbuthnot-eth/privium'});
+	
+	// Initialize the MCP agent
+	async init() {
+	  // Register tools and resources from external file (mcp_tools.ts)
+	  registerTools(this);
+	  registerResources(this);
+	  console.log('🔵',SERVER_NAME, 'Agent initialized, Version:', SERVER_VERSION);
+	}
+}
+
+// Initialize Privy Client
 export function initPrivyClient(env: any): PrivyClient {
   return new PrivyClient(env.PRIVY_APP_ID, env.PRIVY_APP_SECRET, {
     walletApi: {
@@ -10,7 +26,8 @@ export function initPrivyClient(env: any): PrivyClient {
   });
 }
 
-export function registerTools(agent: any) {
+// Register Tools
+async function registerTools(agent: any) {
 	const server = agent.server;
 
 	// Simple addition tool
@@ -326,7 +343,8 @@ export function registerTools(agent: any) {
 
 }
 
-export function registerResources(agent: any) {
+// Register Resources
+async function registerResources(agent: any) {
 	const server = agent.server;
 	// Add a dynamic greeting resource
 	server.registerResource(

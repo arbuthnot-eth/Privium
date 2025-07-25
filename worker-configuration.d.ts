@@ -8,7 +8,7 @@ declare namespace Cloudflare {
 		PRIVY_APP_SECRET: string;
 		AUTH_PRIVATE_KEY: string;
 		QUORUM_ID: string;
-		MCP_OBJECT: DurableObjectNamespace<import("./src/index").MCPrivy>;
+		MCP_OBJECT: DurableObjectNamespace<import("./src/index").SuperAgent>;
 		AI: Ai;
 		ASSETS: Fetcher;
 		privyUser?: any;
