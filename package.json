@@ -1,6 +1,6 @@
 {
 	"name": "Privium",
-	"version": "0.99.10",
+	"version": "0.99.11",
 	"type": "module",
 	"private": true,
 	"author": "Brandon Arbuthnot",
@@ -26,7 +26,7 @@
 		"@privy-io/server-auth": "^1.28.4",
 		"agents": "^0.0.109",
 		"hono": "^4.8.5",
-		"zod": "^4.0.5"
+		"zod": "^3.25.67"
 	},
 	"devDependencies": {
 		"@types/node": "^24.0.14",

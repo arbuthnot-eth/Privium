@@ -6,6 +6,14 @@
 	"compatibility_flags": [
 	  "nodejs_compat"
 	],
+	"migrations": [
+	  {
+		"new_sqlite_classes": [
+		  "SuperAgent"
+		],
+		"tag": "v1"
+	  }
+	],
 	"durable_objects": {
 	  "bindings": [
 		{
