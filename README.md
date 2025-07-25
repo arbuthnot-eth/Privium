@@ -150,6 +150,10 @@ To add your own tools to the MCP server, define each tool inside the `registerTo
 
 To add resources, use `server.registerResource()` in the same file.
 
+## Configuration
+
+The server name and version are centralized in `src/config.ts` for consistency across the application. When updating the server name or version, ensure all references are updated accordingly.
+
 ## Security Features
 
 - **PKCE Implementation**: Protection against authorization code interception

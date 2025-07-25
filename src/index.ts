@@ -3,13 +3,11 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerResources, registerTools } from "./mcp_tools";
 import { Hono } from 'hono';
 import { requireAuth, authHandler } from "./authMiddleware";
-
-const SERVER_NAME = "Privium";
-const SERVER_VERSION = "0.99.4";
+import { SERVER_NAME, SERVER_VERSION } from "./config";
 
 // Define our MCP agent with version and register tools
 export class MCPrivy extends McpAgent<Env, DurableObjectState, {}> {
-  server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION, description: 'Privium MCP Server', documentation: 'https://github.com/arbuthnot-eth/privium'});
+  server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION, description: SERVER_NAME + ' MCP Server', documentation: 'https://github.com/arbuthnot-eth/privium'});
   
   // Initialize the MCP agent
   async init() {

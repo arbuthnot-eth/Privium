@@ -551,6 +551,7 @@ export async function wrapKeyWithToken(tokenStr: string, keyToWrap: CryptoKey): 
 // Derive key from token
 export async function deriveKeyFromToken(tokenStr: string): Promise<CryptoKey> {
 	const encoder = new TextEncoder();
+	// TODO: Use an environment variable as additional salt
 	// Use a derived static key from the token string itself for key wrapping
 	// In production, you might want to use an environment variable as additional salt
 	const salt = encoder.encode('privium-mcp-kdf-salt-v1');

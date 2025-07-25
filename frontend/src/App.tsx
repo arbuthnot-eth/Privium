@@ -18,7 +18,7 @@ function LoginScreen() {
   });
   return (
     <div style={{ textAlign: 'center', padding: '2rem' }}>
-      <h1>Privium MCP Server</h1>
+      <h1>{APP_NAME} MCP Server</h1>
       <p>Please sign in to continue</p>
       <button onClick={login} style={{ padding: '12px 24px', fontSize: '16px', cursor: 'pointer' }}>
         Sign In
@@ -270,7 +270,7 @@ function BearerTokenGenerator() {
       // Step 6: Format the response as requested
       const baseUrl = window.location.origin;
       const tokenInfo = {
-        Privium: {
+        [APP_NAME]: {
           type: "streamable-http",
           url: `${baseUrl}/mcp`,
           headers: {
@@ -356,11 +356,11 @@ function BearerTokenGenerator() {
             {bearerTokenInfo && (
               <>
                 <div>{'{'}</div>
-                <div>&nbsp;&nbsp;"Privium": {'{'}</div>
+                <div>&nbsp;&nbsp;"{APP_NAME}": {'{'}</div>
                 <div>&nbsp;&nbsp;&nbsp;&nbsp;"type": "streamable-http",</div>
-                <div>&nbsp;&nbsp;&nbsp;&nbsp;"url": "{bearerTokenInfo.Privium.url}",</div>
+                <div>&nbsp;&nbsp;&nbsp;&nbsp;"url": "{bearerTokenInfo[APP_NAME].url}",</div>
                 <div>&nbsp;&nbsp;&nbsp;&nbsp;"headers": {'{'}</div>
-                <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"authorization": "Bearer <span id="bearer-token-value">{bearerTokenInfo.Privium.headers.authorization.replace('Bearer ', '')}</span>"</div>
+                <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"authorization": "Bearer <span id="bearer-token-value">{bearerTokenInfo[APP_NAME].headers.authorization.replace('Bearer ', '')}</span>"</div>
                 <div>&nbsp;&nbsp;&nbsp;&nbsp;{'}'}</div>
                 <div>&nbsp;&nbsp;{'}'}</div>
                 <div>{'}'}</div>
@@ -370,7 +370,7 @@ function BearerTokenGenerator() {
           <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
             <CopyToClipboardButton textToCopy={JSON.stringify(bearerTokenInfo, null, 2)} buttonText="Copy JSON" />
             <CopyToClipboardButton
-              textToCopy={bearerTokenInfo.Privium.headers.authorization.replace('Bearer ', '')}
+              textToCopy={bearerTokenInfo[APP_NAME].headers.authorization.replace('Bearer ', '')}
               buttonText="Copy Token"
               highlightTargetId="bearer-token-value"
             />
@@ -568,7 +568,7 @@ function AuthorizeHandler({ authParams }: { authParams: { client_id: string | nu
               Authorize Access
             </h2>
             <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-secondary)' }}>
-              An MCP Client wants to access your MCP tools
+              An MCP Client wants to access your {APP_NAME} MCP Server
             </p>
           </div>
 
@@ -583,7 +583,7 @@ function AuthorizeHandler({ authParams }: { authParams: { client_id: string | nu
                 PERMISSIONS
               </div>
               <div style={{ fontSize: '14px' }}>
-                • Access to MCP Server tools and resources
+                • Access to {APP_NAME} MCP Server tools and resources
               </div>
             </div>
             
@@ -660,7 +660,7 @@ function AuthorizeHandler({ authParams }: { authParams: { client_id: string | nu
             margin: '16px 0 0 0',
             lineHeight: '1.4'
           }}>
-            This allows the MCP Client to connect to your Privium MCP Server using OAuth 2.1 with PKCE
+            This allows the MCP Client to connect to your {APP_NAME} MCP Server using OAuth 2.1 with PKCE
           </p>
         </div>
       </div>
@@ -705,7 +705,7 @@ export default function App() {
   if (ready && authenticated) {
       return (
         <div style={{ textAlign: 'center', padding: '2rem' }}>
-          <h1>Privium MCP Server</h1>
+          <h1>{APP_NAME} MCP Server</h1>
           <p>User {user?.id} is logged in.</p>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '1rem' }}>
           </div>

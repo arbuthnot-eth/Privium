@@ -5,6 +5,12 @@ import { singleFileCompression } from "vite-plugin-singlefile-compression";
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react(), singleFileCompression()],
+  define: {
+    // Define global constants that can be accessed in the frontend code
+    // These values will be inlined during build time
+    APP_NAME: JSON.stringify("Privium"),
+    APP_DESCRIPTION: JSON.stringify("MCP Server"),
+  },
   build: {
     target: 'es2020', // Ensure modern ES features are preserved
     rollupOptions: {
