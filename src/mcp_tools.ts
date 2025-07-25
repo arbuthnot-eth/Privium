@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { PrivyClient } from "@privy-io/server-auth";
 import { McpAgent } from "agents/mcp";
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SERVER_NAME, SERVER_VERSION } from "./config";
@@ -15,15 +14,6 @@ export class SuperAgent extends McpAgent<Env, DurableObjectState, {}> {
 	  registerResources(this);
 	  console.log('🔵',SERVER_NAME, 'Agent initialized, Version:', SERVER_VERSION);
 	}
-}
-
-// Initialize Privy Client
-export function initPrivyClient(env: any): PrivyClient {
-  return new PrivyClient(env.PRIVY_APP_ID, env.PRIVY_APP_SECRET, {
-    walletApi: {
-      authorizationPrivateKey: env.AUTH_PRIVATE_KEY,
-    },
-  });
 }
 
 // Register Tools

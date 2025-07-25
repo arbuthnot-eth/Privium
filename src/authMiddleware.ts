@@ -1,6 +1,15 @@
 import { Hono, Context } from 'hono';
 import { cors } from 'hono/cors';
-import { initPrivyClient } from './mcp_tools';
+import { PrivyClient } from "@privy-io/server-auth";
+
+// Initialize Privy Client
+function initPrivyClient(env: any): PrivyClient {
+  return new PrivyClient(env.PRIVY_APP_ID, env.PRIVY_APP_SECRET, {
+    walletApi: {
+      authorizationPrivateKey: env.AUTH_PRIVATE_KEY,
+    },
+  });
+}
 
 // Auth Handler
 export const authHandler = (app: Hono<{ Bindings: Env }>) => {
@@ -493,7 +502,7 @@ export const requireAuth = async (c: Context<{ Bindings: Env }>, next: any) => {
 };
 
 // Cryptographic Functions
-export async function hashSecret(secret: string): Promise<string> {
+async function hashSecret(secret: string): Promise<string> {
 	const encoder = new TextEncoder();
 	const data = encoder.encode(secret);
 	const hashBuffer = await crypto.subtle.digest('SHA-256', data);
@@ -502,7 +511,7 @@ export async function hashSecret(secret: string): Promise<string> {
 }
 
 // Encrypt properties
-export async function encryptProps(data: any): Promise<{ encryptedData: string; iv: string; key: CryptoKey }> {
+async function encryptProps(data: any): Promise<{ encryptedData: string; iv: string; key: CryptoKey }> {
 	const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']) as CryptoKey;
 	const iv = crypto.getRandomValues(new Uint8Array(12)); // Generate random IV for security
 	const jsonData = JSON.stringify(data);
@@ -517,7 +526,7 @@ export async function encryptProps(data: any): Promise<{ encryptedData: string; 
 }
 
 // Decrypt properties
-export async function decryptProps(encryptedData: string, iv: string, key: CryptoKey): Promise<any> {
+async function decryptProps(encryptedData: string, iv: string, key: CryptoKey): Promise<any> {
 	const encryptedBuffer = base64ToArrayBuffer(encryptedData);
 	const ivBuffer = base64ToArrayBuffer(iv);
 	const decryptedBuffer = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: ivBuffer }, key, encryptedBuffer);
@@ -527,7 +536,7 @@ export async function decryptProps(encryptedData: string, iv: string, key: Crypt
 }
 
 // Convert base64 to array buffer
-export function base64ToArrayBuffer(base64: string): ArrayBuffer {
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
 	const binaryString = atob(base64);
 	const bytes = new Uint8Array(binaryString.length);
 	for (let i = 0; i < binaryString.length; i++) {
@@ -537,19 +546,19 @@ export function base64ToArrayBuffer(base64: string): ArrayBuffer {
 }
 
 // Convert array buffer to base64
-export function arrayBufferToBase64(buffer: ArrayBuffer): string {
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
 	return btoa(String.fromCharCode(...Array.from(new Uint8Array(buffer))));
 }
 
 // Wrap key with token
-export async function wrapKeyWithToken(tokenStr: string, keyToWrap: CryptoKey): Promise<string> {
+async function wrapKeyWithToken(tokenStr: string, keyToWrap: CryptoKey): Promise<string> {
 	const wrappingKey = await deriveKeyFromToken(tokenStr);
 	const wrappedKeyBuffer = await crypto.subtle.wrapKey('raw', keyToWrap, wrappingKey, { name: 'AES-KW' });
 	return arrayBufferToBase64(wrappedKeyBuffer);
 }
 
 // Derive key from token
-export async function deriveKeyFromToken(tokenStr: string): Promise<CryptoKey> {
+async function deriveKeyFromToken(tokenStr: string): Promise<CryptoKey> {
 	const encoder = new TextEncoder();
 	// TODO: Use an environment variable as additional salt
 	// Use a derived static key from the token string itself for key wrapping
