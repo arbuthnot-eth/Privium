@@ -1,15 +1,11 @@
 {
 	"name": "Privium",
-	"version": "0.99.13",
+	"version": "0.99.14",
 	"type": "module",
 	"private": true,
 	"author": "Brandon Arbuthnot",
 	"license": "MIT",
 	"homepage": "https://github.com/arbuthnot-eth/privium",
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/arbuthnot-eth/privium.git"
-	},
 	"scripts": {
 		"deploy": "wrangler deploy",
 		"dev": "wrangler dev",

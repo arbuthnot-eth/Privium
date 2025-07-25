@@ -7,6 +7,7 @@ declare namespace Cloudflare {
 		PRIVY_APP_ID: string;
 		PRIVY_APP_SECRET: string;
 		AUTH_PRIVATE_KEY: string;
+		KDF_SALT: string;
 		QUORUM_ID: string;
 		MCP_OBJECT: DurableObjectNamespace<import("./src/index").SuperAgent>;
 		AI: Ai;
@@ -5635,7 +5636,7 @@ interface RequestInitCfPropertiesImage extends BasicImageTransformations {
      *   in combination with the properties above
      * - border - this will automatically trim the surroundings of an image based on
      *   it's color. It consists of three properties:
-     *    - color: rgb or hex representation of the color you wish to trim (todo: verify the rgba bit)
+     *    - color: rgb or hex representation of the color you wish to trim (can do: verify the rgba bit)
      *    - tolerance: difference from color to treat as color
      *    - keep: the number of pixels of border to keep
      */

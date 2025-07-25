@@ -138,7 +138,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 		  
 		  // Encrypt auth data
 		  const { encryptedData, iv, key } = await encryptProps(authData);
-		  const wrappedKey = await wrapKeyWithToken(authCode, key);
+		  const wrappedKey = await wrapKeyWithToken(authCode, key, c.env);
 		  const encryptedAuthData = { encryptedData, iv, wrappedKey };
 		  await c.env.OAUTH_KV.put(`auth_code:${authCode}`, JSON.stringify(encryptedAuthData), { expirationTtl: 600 });
 		  console.log('🔵 OAUTH: Successfully stored encrypted auth data in KV');
@@ -217,7 +217,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 			  const unwrappedRefreshKey = await crypto.subtle.unwrapKey(
 				  'raw',
 				  base64ToArrayBuffer(encryptedRefreshData.wrappedKey),
-				  await deriveKeyFromToken(refreshToken),
+				  await deriveKeyFromToken(refreshToken, c.env),
 				  { name: 'AES-KW' },
 				  { name: 'AES-GCM' },
 				  false,
@@ -246,7 +246,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
   
 			  // Encrypt access token data
 			  const { encryptedData: newEncAccessData, iv: newAccessIv, key: newAccessKey } = await encryptProps(tokenData);
-			  const newWrappedAccessKey = await wrapKeyWithToken(newAccessToken, newAccessKey);
+			  const newWrappedAccessKey = await wrapKeyWithToken(newAccessToken, newAccessKey, c.env);
 			  const newEncryptedTokenData = { encryptedData: newEncAccessData, iv: newAccessIv, wrappedKey: newWrappedAccessKey };
 			  await c.env.OAUTH_KV.put(`access_token:${await hashSecret(newAccessToken)}`, JSON.stringify(newEncryptedTokenData), { expirationTtl: 36000 });
 			  console.log('🔵 TOKEN: Encrypted access token (new) stored');
@@ -263,7 +263,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
   
 			  // Encrypt refresh token data
 			  const { encryptedData: newEncRefreshData, iv: newRefreshIv, key: newRefreshKey } = await encryptProps(newRefreshData);
-			  const newWrappedRefreshKey = await wrapKeyWithToken(newRefreshToken, newRefreshKey);
+			  const newWrappedRefreshKey = await wrapKeyWithToken(newRefreshToken, newRefreshKey, c.env);
 			  const newEncryptedRefreshData = { encryptedData: newEncRefreshData, iv: newRefreshIv, wrappedKey: newWrappedRefreshKey };
 			  await c.env.OAUTH_KV.put(`refresh_token:${await hashSecret(newRefreshToken)}`, JSON.stringify(newEncryptedRefreshData));
 			  console.log('🔵 TOKEN: Encrypted refresh token (new) stored');
@@ -305,7 +305,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 		  const unwrappedKey = await crypto.subtle.unwrapKey(
 			  'raw',
 			  base64ToArrayBuffer(encryptedAuthData.wrappedKey),
-			  await deriveKeyFromToken(code),
+			  await deriveKeyFromToken(code, c.env),
 			  { name: 'AES-KW' },
 			  { name: 'AES-GCM' },
 			  false,
@@ -352,10 +352,9 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 		  
 		  // Encrypt access token data
 		  const { encryptedData: encAccessData, iv: accessIv, key: accessKey } = await encryptProps(tokenData);
-		  const wrappedAccessKey = await wrapKeyWithToken(accessToken, accessKey);
+		  const wrappedAccessKey = await wrapKeyWithToken(accessToken, accessKey, c.env);
 		  const encryptedTokenData = { encryptedData: encAccessData, iv: accessIv, wrappedKey: wrappedAccessKey };
 		  await c.env.OAUTH_KV.put(`access_token:${await hashSecret(accessToken)}`, JSON.stringify(encryptedTokenData), { expirationTtl: 36000 });
-
   
 		  // Generate refresh token
 		  const newRefreshToken = crypto.randomUUID();
@@ -369,7 +368,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 		  
 		  // Encrypt refresh token data
 		  const { encryptedData: encRefreshData, iv: refreshIv, key: refreshKey } = await encryptProps(refreshData);
-		  const wrappedRefreshKey = await wrapKeyWithToken(newRefreshToken, refreshKey);
+		  const wrappedRefreshKey = await wrapKeyWithToken(newRefreshToken, refreshKey, c.env);
 		  const encryptedRefreshData = { encryptedData: encRefreshData, iv: refreshIv, wrappedKey: wrappedRefreshKey };
 		  await c.env.OAUTH_KV.put(`refresh_token:${await hashSecret(newRefreshToken)}`, JSON.stringify(encryptedRefreshData));
 		  console.log('🔵 TOKEN: Encrypted Access, Identity, and Refresh tokens stored in KV');
@@ -404,7 +403,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 			  console.error('🔴 REG ERROR: Missing or invalid redirect_uris');
 			  return c.json({ error: 'invalid_client_metadata' }, 400);
 		}
-
+  
 		// Generate client ID and secret
 		const clientId = crypto.randomUUID();
 		const clientSecret = crypto.randomUUID();
@@ -415,10 +414,10 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 		  client_secret: hashedSecret,
 		  client_id_issued_at: Math.floor(Date.now() / 1000)
 		};
-
+  
 		// Encrypt client data	
 		const { encryptedData: encClientData, iv: clientIv, key: clientKey } = await encryptProps(clientData);
-		const wrappedClientKey = await wrapKeyWithToken(clientId, clientKey);
+		const wrappedClientKey = await wrapKeyWithToken(clientId, clientKey, c.env);
 		const encryptedClientData = { encryptedData: encClientData, iv: clientIv, wrappedKey: wrappedClientKey };
 		await c.env.OAUTH_KV.put(`client:${clientId}`, JSON.stringify(encryptedClientData));
 		console.log('🔵 REG: Successfully stored encrypted client data in KV');
@@ -486,7 +485,7 @@ export const requireAuth = async (c: Context<{ Bindings: Env }>, next: any) => {
   const unwrappedTokenKey = await crypto.subtle.unwrapKey(
     'raw',
     base64ToArrayBuffer(encryptedTokenData.wrappedKey),
-    await deriveKeyFromToken(token),
+    await deriveKeyFromToken(token, c.env),
     { name: 'AES-KW' },
     { name: 'AES-GCM' },
     false,
@@ -551,19 +550,19 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 }
 
 // Wrap key with token
-async function wrapKeyWithToken(tokenStr: string, keyToWrap: CryptoKey): Promise<string> {
-	const wrappingKey = await deriveKeyFromToken(tokenStr);
+async function wrapKeyWithToken(tokenStr: string, keyToWrap: CryptoKey, env: Env): Promise<string> {
+	const wrappingKey = await deriveKeyFromToken(tokenStr, env);
 	const wrappedKeyBuffer = await crypto.subtle.wrapKey('raw', keyToWrap, wrappingKey, { name: 'AES-KW' });
 	return arrayBufferToBase64(wrappedKeyBuffer);
 }
 
 // Derive key from token
-async function deriveKeyFromToken(tokenStr: string): Promise<CryptoKey> {
+async function deriveKeyFromToken(tokenStr: string, env: Env): Promise<CryptoKey> {
 	const encoder = new TextEncoder();
-	// TODO: Use an environment variable as additional salt
 	// Use a derived static key from the token string itself for key wrapping
-	// In production, you might want to use an environment variable as additional salt
-	const salt = encoder.encode('privium-mcp-kdf-salt-v1');
+	// In production, use Cloudflare Secrets for sensitive data like this salt.
+	// Access the secret via the 'env' object provided by Cloudflare Workers.
+	const salt = encoder.encode(env.KDF_SALT);
 	const keyMaterial = await crypto.subtle.importKey(
 	  'raw',
 	  encoder.encode(tokenStr),

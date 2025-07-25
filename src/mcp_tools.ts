@@ -5,7 +5,7 @@ import { SERVER_NAME, SERVER_VERSION } from "./config";
 
 // Define our MCP agent with version and register tools
 export class SuperAgent extends McpAgent<Env, DurableObjectState, {}> {
-	server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION, description: SERVER_NAME + ' MCP Server', documentation: 'https://github.com/arbuthnot-eth/privium'});
+	server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION, description: SERVER_NAME + ' MCP Server'});
 	
 	// Initialize the MCP agent
 	async init() {

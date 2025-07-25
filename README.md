@@ -108,7 +108,7 @@ To connect to Privium from Cursor, you can use either the remote or local server
   "Privium": {
     "url": "https://privium.imbibed.workers.dev/mcp"
   },
-  "Privum_local": {
+  "Privium_local": {
     "url": "http://localhost:8787/mcp"
   }
 }
