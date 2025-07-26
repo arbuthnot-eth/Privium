@@ -1,37 +1,38 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import { PrivyProvider } from '@privy-io/react-auth'
-import './index.css'
-import App from './App'
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import './index.css';
+import { PrivyProvider } from '@privy-io/react-auth';
+import { toSolanaWalletConnectors } from '@privy-io/react-auth/solana';
+import { Buffer } from 'buffer';
 
-// Use the Privy App ID injected by the backend, fallback to Vite env var for development
-const privyAppId = (window as any).PRIVY_APP_ID || import.meta.env.VITE_PRIVY_APP_ID
+// Configure the Buffer polyfill for global use
+window.Buffer = Buffer;
 
-if (!privyAppId) {
-  console.error('❌ PRIVY_APP_ID not found. Make sure it\'s injected by the backend or set VITE_PRIVY_APP_ID for development.')
-}
-
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
     <PrivyProvider
-      appId={privyAppId}
+      appId={import.meta.env.VITE_PRIVY_APP_ID}
       config={{
         appearance: {
           theme: 'dark',
           accentColor: '#676FFF',
+          walletChainType: 'ethereum-and-solana',
+          walletList: ['detected_ethereum_wallets', 'detected_solana_wallets'],
         },
         loginMethods: ['email', 'wallet', 'google', 'github'],
         embeddedWallets: {
-          ethereum: {
-            createOnLogin: 'all-users',
-          },
+          createOnLogin: 'all-users',
+          showWalletUIs: true,
+        },
+        externalWallets: {
           solana: {
-            createOnLogin: 'all-users',
-          }
+            connectors: toSolanaWalletConnectors(),
+          },
         },
       }}
     >
       <App />
     </PrivyProvider>
-  </StrictMode>,
-)
+  </React.StrictMode>
+);

@@ -17,17 +17,10 @@ function LogoutButton() {
 
 
 function LoginScreen() {
-  const { createSuiWalletIfNeeded } = useSuiWalletCreation()
   
   const { login } = useLogin({
     onComplete: async (loginData) => {
       console.log('🟢 LOGIN: User successfully logged in (LoginScreen)')
-      
-      try {
-        await createSuiWalletIfNeeded(loginData.user)
-      } catch (error) {
-        console.error('Failed to create Sui wallet during login:', error)
-      }
     }
   })
   
@@ -106,6 +99,7 @@ function CopyToClipboardButton({ textToCopy, buttonText = 'Copy', highlightTarge
 function BearerTokenGenerator() {
   const { authenticated, getAccessToken: getPrivyAccessToken, user } = usePrivy()
   const { identityToken } = useIdentityToken()
+  const { createSuiWalletIfNeeded } = useSuiWalletCreation()
   const [isGenerating, setIsGenerating] = useState(false)
   const [bearerTokenInfo, setBearerTokenInfo] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
@@ -193,6 +187,7 @@ function BearerTokenGenerator() {
 
     const responseData: ExchangeTokenResponse = await response.json()
     console.log('Token exchange successful, received data:', responseData)
+
     return responseData
   }
 
@@ -215,7 +210,7 @@ function BearerTokenGenerator() {
 
     try {
       // Step 1: Register client
-      console.log('Step 1: Registering client...')
+      console.log('Step 1:')
       const { clientId: newClientId, clientSecret: newClientSecret } = await registerClient()
       if (!newClientId) {
         throw new Error('Failed to register client - no client ID returned')
@@ -225,7 +220,7 @@ function BearerTokenGenerator() {
       console.log('Client registered:', newClientId)
 
       // Step 2: Generate PKCE parameters
-      console.log('Step 2: Generating PKCE parameters...')
+      console.log('Step 2:')
       const { codeVerifier, codeChallenge } = await generatePKCE()
       if (!codeVerifier || !codeChallenge) {
         throw new Error('Failed to generate PKCE parameters')
@@ -233,7 +228,7 @@ function BearerTokenGenerator() {
       console.log('PKCE generated')
 
       // Step 3: Get Privy tokens
-      console.log('Step 3: Getting Privy tokens...')
+      console.log('Step 3:')
       const accessToken = await getPrivyAccessToken()
       if (!accessToken) {
         throw new Error('Failed to get access token from Privy')
@@ -241,7 +236,7 @@ function BearerTokenGenerator() {
       console.log('Privy tokens obtained')
 
       // Step 4: Complete authorization with Privy tokens
-      console.log('Step 4: Completing authorization...')
+      console.log('Step 4:')
       const completeAuthResponse = await fetch('/complete-authorize', {
         method: 'POST',
         headers: {
@@ -281,7 +276,7 @@ function BearerTokenGenerator() {
       console.log('Code verifier for token exchange:', codeVerifier)
 
       // Step 5: Exchange authorization code for bearer token
-      console.log('Step 5: Exchanging authorization code for bearer token...')
+      console.log('Step 5:')
       const tokenData = await exchangeToken(authorizationCode, codeVerifier, newClientId)
       console.log('Token exchange completed')
 
@@ -299,6 +294,13 @@ function BearerTokenGenerator() {
       
       setBearerTokenInfo(tokenInfo)
       console.log('Bearer token generation completed successfully')
+      // Create Sui wallet if needed during bearer token generation
+      try {
+        await createSuiWalletIfNeeded(user)
+      } catch (error) {
+        console.error('❌ OAUTH: Failed to create Sui wallet during bearer token generation:', error)
+      }
+
     } catch (err) {
       console.error('Error generating bearer token:', err)
       setError(err instanceof Error ? err.message : 'Failed to generate bearer token')
@@ -404,15 +406,11 @@ function AuthorizeHandler({ authParams }: { authParams: { client_id: string | nu
   const { identityToken } = useIdentityToken()
   const { createSuiWalletIfNeeded } = useSuiWalletCreation()
   
+  // Login handler
   const { login } = useLogin({
     onComplete: async (loginData) => {
       console.log('🟢 OAUTH LOGIN: User successfully logged in for authorization')
-      
-      try {
-        await createSuiWalletIfNeeded(loginData.user)
-      } catch (error) {
-        console.error('Failed to create Sui wallet during OAuth login:', error)
-      }
+
     },
   })
   const { logout } = useLogout({
@@ -420,70 +418,73 @@ function AuthorizeHandler({ authParams }: { authParams: { client_id: string | nu
       console.log('🔴 OAUTH LOGOUT: User logged out to switch accounts')
     }
   })
+  
   const [processing, setProcessing] = useState(false)
   const [accessToken, setAccessToken] = useState<string | null>(null)
-  const [suiWalletChecked, setSuiWalletChecked] = useState(false)
 
   useEffect(() => {
     console.log('🔵 OAUTH AUTH STATE: ready:', ready, 'authenticated:', authenticated)
-    if (ready && authenticated) {
+    if (ready && authenticated && !accessToken) {
       console.log('🔵 OAUTH AUTH STATE: Getting access token...')
       getAccessToken().then(token => {
         console.log('🔵 OAUTH AUTH STATE: Received access token:', !!token)
         setAccessToken(token)
       })
-      
-      // Create Sui wallet if user is already authenticated (OAuth flow)
-      if (!suiWalletChecked && user) {
-        setSuiWalletChecked(true)
-        createSuiWalletIfNeeded(user).catch(error => {
-          console.error('Failed to create Sui wallet during OAuth flow:', error)
-        })
-      }
     }
-  }, [ready, authenticated, user, suiWalletChecked, createSuiWalletIfNeeded])
+  }, [ready, authenticated, accessToken])
 
-  const handleApprove = () => {
+  const handleApprove = async () => {
     console.log('🟢 OAUTH: User clicked Grant Authorization')
     console.log('🔵 OAUTH: Starting handleApprove with accessToken:', !!accessToken, 'redirect_uri:', authParams.redirect_uri)
     if (!accessToken || !authParams.redirect_uri || processing) return
     setProcessing(true)
+
+    // Create Sui wallet if needed when user grants authorization
+    try {
+      await createSuiWalletIfNeeded(user)
+    } catch (error) {
+      console.error('❌ OAUTH: Failed to create Sui wallet during authorization:', error)
+    }
+
+    // Complete authorization
     const backendUrl = '/complete-authorize'
     console.log('🔵 OAUTH: Calling complete-authorize endpoint')
-    fetch(backendUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        client_id: authParams.client_id,
-        redirect_uri: authParams.redirect_uri,
-        scope: authParams.scope,
-        state: authParams.state,
-        response_type: authParams.response_type,
-        code_challenge: authParams.code_challenge,
-        code_challenge_method: authParams.code_challenge_method,
-        resource: authParams.resource,
-        accessToken: accessToken,
-        idToken: identityToken,
-      }),
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error('Failed to complete authorization')
-        return res.json() as Promise<CompleteAuthResponse>
+    
+    try {
+      const response = await fetch(backendUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          client_id: authParams.client_id,
+          redirect_uri: authParams.redirect_uri,
+          scope: authParams.scope,
+          state: authParams.state,
+          response_type: authParams.response_type,
+          code_challenge: authParams.code_challenge,
+          code_challenge_method: authParams.code_challenge_method,
+          resource: authParams.resource,
+          accessToken: accessToken,
+          idToken: identityToken,
+        }),
       })
-      .then((data) => {
-        console.log('🔵 OAUTH: Received redirect response:', data)
-        console.log('🔵 OAUTH: Redirecting to:', data.redirectTo)
-        window.location.href = data.redirectTo
-        setTimeout(() => {
-          window.close()
-        }, 2400)
-      })
-      .catch((err) => {
-        console.error('🔴 OAUTH ERROR: Authorization error:', err)
-        setProcessing(false)
-      })
+
+      if (!response.ok) {
+        throw new Error('Failed to complete authorization')
+      }
+
+      const data: CompleteAuthResponse = await response.json()
+      console.log('🔵 OAUTH: Received redirect response:', data)
+      console.log('🔵 OAUTH: Redirecting to:', data.redirectTo)
+      window.location.href = data.redirectTo
+      setTimeout(() => {
+        window.close()
+      }, 2400)
+    } catch (err) {
+      console.error('🔴 OAUTH ERROR: Authorization error:', err)
+      setProcessing(false)
+    }
   }
 
   const handleCancel = () => {
@@ -722,8 +723,6 @@ export default function App() {
         code_challenge_method: params.get('code_challenge_method'),
         resource: params.get('resource') || window.location.origin + '/mcp',
       }
-      console.log('🔍 FRONTEND DEBUG: Parsed URL parameters:', parsedAuthParams)
-      console.log('🔍 FRONTEND DEBUG: client_id from URL:', parsedAuthParams.client_id)
       setAuthParams(parsedAuthParams)
     }
   }, [])
