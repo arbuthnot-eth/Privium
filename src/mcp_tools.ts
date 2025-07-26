@@ -12,7 +12,8 @@ export class SuperAgent extends McpAgent<Env, DurableObjectState, {}> {
 	  // Register tools and resources from external file (mcp_tools.ts)
 	  registerTools(this)
 	  registerResources(this)
-	  console.log('🔵',SERVER_NAME, 'Agent initialized, Version:', SERVER_VERSION)
+	  console.log('⛅',SERVER_NAME, 'Agent initialized, Version:', SERVER_VERSION)
+	  console.log('.      for: ' + this.env.privyUser.id)
 	}
 }
 

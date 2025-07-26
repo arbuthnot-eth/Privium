@@ -6,8 +6,8 @@ import { SERVER_NAME, SERVER_VERSION } from "./config"
 // Hono App
 const app = new Hono<{ Bindings: Env }>()
 
-// Auth Handler
-authHandler(app)
+// Auth Handler (strictMode disabled)
+authHandler(app, false)
 
 // GET /mcp - Discovery/Health Check (no auth required)
 app.get('/mcp', async (c) => {

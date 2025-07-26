@@ -1,5 +1,9 @@
 import { usePrivy, useLogout, useLogin, getAccessToken, useIdentityToken } from '@privy-io/react-auth'
 import { useState, useCallback, useEffect } from 'react'
+import { useSuiWalletCreation } from './utils/walletUtils'
+import { SERVER_NAME } from '../../src/config'
+
+const APP_NAME = SERVER_NAME
 
 function LogoutButton() {
   const { logout } = useLogout({
@@ -10,12 +14,23 @@ function LogoutButton() {
   return <button onClick={logout}>Log out</button>
 }
 
+
+
 function LoginScreen() {
+  const { createSuiWalletIfNeeded } = useSuiWalletCreation()
+  
   const { login } = useLogin({
-    onComplete: () => {
+    onComplete: async (loginData) => {
       console.log('🟢 LOGIN: User successfully logged in (LoginScreen)')
+      
+      try {
+        await createSuiWalletIfNeeded(loginData.user)
+      } catch (error) {
+        console.error('Failed to create Sui wallet during login:', error)
+      }
     }
   })
+  
   return (
     <div style={{ textAlign: 'center', padding: '2rem' }}>
       <h1>{APP_NAME} MCP Server</h1>
@@ -137,8 +152,8 @@ function BearerTokenGenerator() {
   }
 
   // Exchange authorization code for tokens
-  const exchangeToken = async (authorizationCode: string, codeVerifier: string, clientIdParam: string) => {
-    console.log('exchangeToken called with:', { authorizationCode, codeVerifier, clientIdParam })
+  const exchangeToken = async (authorizationCode: string, codeVerifier: string, clientIdParam: string, redirectUri?: string) => {
+    console.log('exchangeToken called with:', { authorizationCode, codeVerifier, clientIdParam, redirectUri })
     if (!clientIdParam) {
       throw new Error('Client ID is required for token exchange')
     }
@@ -149,10 +164,13 @@ function BearerTokenGenerator() {
       throw new Error('Code verifier is required for token exchange')
     }
     
+    // Use provided redirectUri or fallback to the internal redirect URI
+    const finalRedirectUri = redirectUri || `${window.location.origin}/authorize`
+    
     const params = new URLSearchParams({
       grant_type: 'authorization_code',
       code: authorizationCode,
-      redirect_uri: `${window.location.origin}/authorize`,
+      redirect_uri: finalRedirectUri,
       client_id: clientIdParam,
       code_verifier: codeVerifier,
     })
@@ -384,9 +402,17 @@ function BearerTokenGenerator() {
 function AuthorizeHandler({ authParams }: { authParams: { client_id: string | null; redirect_uri: string | null; scope: string | null; state: string | null; response_type: string | null; code_challenge: string | null; code_challenge_method: string | null; resource: string | null } }) {
   const { ready, authenticated, user } = usePrivy()
   const { identityToken } = useIdentityToken()
+  const { createSuiWalletIfNeeded } = useSuiWalletCreation()
+  
   const { login } = useLogin({
-    onComplete: () => {
+    onComplete: async (loginData) => {
       console.log('🟢 OAUTH LOGIN: User successfully logged in for authorization')
+      
+      try {
+        await createSuiWalletIfNeeded(loginData.user)
+      } catch (error) {
+        console.error('Failed to create Sui wallet during OAuth login:', error)
+      }
     },
   })
   const { logout } = useLogout({
@@ -396,6 +422,7 @@ function AuthorizeHandler({ authParams }: { authParams: { client_id: string | nu
   })
   const [processing, setProcessing] = useState(false)
   const [accessToken, setAccessToken] = useState<string | null>(null)
+  const [suiWalletChecked, setSuiWalletChecked] = useState(false)
 
   useEffect(() => {
     console.log('🔵 OAUTH AUTH STATE: ready:', ready, 'authenticated:', authenticated)
@@ -405,8 +432,16 @@ function AuthorizeHandler({ authParams }: { authParams: { client_id: string | nu
         console.log('🔵 OAUTH AUTH STATE: Received access token:', !!token)
         setAccessToken(token)
       })
+      
+      // Create Sui wallet if user is already authenticated (OAuth flow)
+      if (!suiWalletChecked && user) {
+        setSuiWalletChecked(true)
+        createSuiWalletIfNeeded(user).catch(error => {
+          console.error('Failed to create Sui wallet during OAuth flow:', error)
+        })
+      }
     }
-  }, [ready, authenticated])
+  }, [ready, authenticated, user, suiWalletChecked, createSuiWalletIfNeeded])
 
   const handleApprove = () => {
     console.log('🟢 OAUTH: User clicked Grant Authorization')
@@ -442,7 +477,7 @@ function AuthorizeHandler({ authParams }: { authParams: { client_id: string | nu
         console.log('🔵 OAUTH: Redirecting to:', data.redirectTo)
         window.location.href = data.redirectTo
         setTimeout(() => {
-          window.close()
+         // window.close()
         }, 2400)
       })
       .catch((err) => {
@@ -461,7 +496,7 @@ function AuthorizeHandler({ authParams }: { authParams: { client_id: string | nu
       window.location.href = redirectUrl.toString()
     }
     console.log('🔴 OAUTH: Attempting to close window...')
-    window.close()
+    // window.close()
   }
 
   if (!ready) return <div>Loading...</div>
@@ -677,7 +712,7 @@ export default function App() {
     if (window.location.pathname === '/authorize') {
       setIsAuthorizeMode(true)
       const params = new URLSearchParams(window.location.search)
-      setAuthParams({
+      const parsedAuthParams = {
         client_id: params.get('client_id'),
         redirect_uri: params.get('redirect_uri'),
         scope: params.get('scope'),
@@ -686,7 +721,10 @@ export default function App() {
         code_challenge: params.get('code_challenge'),
         code_challenge_method: params.get('code_challenge_method'),
         resource: params.get('resource') || window.location.origin + '/mcp',
-      })
+      }
+      console.log('🔍 FRONTEND DEBUG: Parsed URL parameters:', parsedAuthParams)
+      console.log('🔍 FRONTEND DEBUG: client_id from URL:', parsedAuthParams.client_id)
+      setAuthParams(parsedAuthParams)
     }
   }, [])
   

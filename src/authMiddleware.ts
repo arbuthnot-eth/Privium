@@ -48,7 +48,7 @@ export const requireAuth = async (c: Context<{ Bindings: Env }>, next: any) => {
 	  ['decrypt']
 	)
 	const tokenData = await decryptProps(encryptedTokenData.encryptedData, encryptedTokenData.iv, unwrappedTokenKey)
-	console.log('🔵 MCP: Successfully validated decrypted token for user:', tokenData.privyUser.id)
+	console.log('🛡️  MCP: Validated decrypted token for user:', tokenData.privyUser.id)
   
 	// Set user context
 	c.env.privyUser = tokenData.privyUser
@@ -57,12 +57,12 @@ export const requireAuth = async (c: Context<{ Bindings: Env }>, next: any) => {
 }
 
 // Auth Handler
-export const authHandler = (app: Hono<{ Bindings: Env }>) => {
+export const authHandler = (app: Hono<{ Bindings: Env }>, strictMode: boolean) => {
 	// Add CORS middleware
 	app.use('/*', cors({
 	origin: '*',
 	allowMethods: ['GET', 'POST', 'OPTIONS'],
-	allowHeaders: ['Content-Type', 'Authorization', 'mcp-session-id'],
+	allowHeaders: ['Content-Type', 'Authorization', 'mcp-session-id', 'mcp-protocol-version'],
 	exposeHeaders: ['mcp-session-id'],
 	}))
   
@@ -112,7 +112,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 					  window.PRIVY_APP_ID = "${c.env.PRIVY_APP_ID}"
 				  </script></head>`
 			  )
-			  console.log('🔵 FRONTEND: Successfully fetched asset and injected Privy App ID')
+			  console.log('✅ FRONTEND: Fetched asset and injected Privy App ID')
 			  return c.html(html)
 		  } else {
 			  console.error('🔴 FRONTEND ERROR: Asset fetch failed, status:', asset.status)
@@ -126,27 +126,20 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
   
 	// Authorization Completion (Privy → OAuth Code)
 	app.post('/complete-authorize', async (c) => {
-	  try {
-		  const body = await c.req.json()
-		  console.log('🔵 OAUTH: Request body received:', { 
-			  hasAccessToken: !!body.accessToken,
-			  hasIdToken: !!body.idToken,
-			  client_id: body.client_id,
-			  redirect_uri: body.redirect_uri,
-			  code_challenge: body.code_challenge ? 'present' : 'missing'
-		  })
+		try {
+			const body = await c.req.json()
 		  
-		  // Get access and identity tokens
-		  const token = body.accessToken
-		  const idToken = body.idToken
-		  if (!token) {
-			  console.error('🔴 OAUTH ERROR: Missing access token')
-			  return c.text('Missing access token', 401)
-		  }
-		  if (!idToken) {
-			  console.error('🔴 OAUTH ERROR: Missing identity token')
-			  return c.text('Missing identity token', 401)
-		  }
+			// Get access and identity tokens
+			const token = body.accessToken
+			const idToken = body.idToken
+			if (!token) {
+				console.error('🔴 OAUTH ERROR: Missing access token')
+				return c.text('Missing access token', 401)
+		  	}
+			if (!idToken) {
+				console.error('🔴 OAUTH ERROR: Missing identity token')
+				return c.text('Missing identity token', 401)
+			}
 		  
 		  // Verify and parse the identity token to get full user data
 		  let verifiedClaims
@@ -155,8 +148,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 			  const privyClient = initPrivyClient(c.env)
 			  verifiedClaims = await privyClient.verifyAuthToken(token)
 			  privyUser = await privyClient.getUser({ idToken })
-			  console.log('🔵 OAUTH: Privy Identity and Access tokens verified for user:', verifiedClaims.userId)
-			  console.log('🔵 OAUTH: User Data:', privyUser)
+			  console.log('🛡️  OAUTH: Privy Identity and Access tokens verified for user:', verifiedClaims.userId)
   
 		  } catch (error) {
 			  console.error('🔴 OAUTH ERROR: Token verification failed:', error)
@@ -170,6 +162,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 		  const authCode = crypto.randomUUID()
 		  
 		  // Store the authorization details in KV for later token exchange
+		  // Include client validation metadata for better caching support
 		  const authData = {
 			  userId: privyUser.id, // Use the Privy user ID for consistency
 			  privyUser: privyUser, // Store the full Privy user object
@@ -178,6 +171,13 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 			  scope: body.scope || 'mcp',
 			  codeChallenge: body.code_challenge,
 			  codeChallengeMethod: body.code_challenge_method,
+			  // Add client validation metadata
+			  clientValidation: {
+				  primaryClientId: body.client_id,
+				  redirectUri: body.redirect_uri,
+				  allowClientIdFlexibility: true, // Allow client ID mismatches if other validation passes
+				  timestamp: Date.now()
+			  },
 			  createdAt: Date.now(),
 		  }
 		  
@@ -186,7 +186,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 		  const wrappedKey = await wrapKeyWithToken(authCode, key, c.env)
 		  const encryptedAuthData = { encryptedData, iv, wrappedKey }
 		  await c.env.OAUTH_KV.put(`auth_code:${authCode}`, JSON.stringify(encryptedAuthData), { expirationTtl: 600 })
-		  console.log('🔵 OAUTH: Successfully stored encrypted auth data in KV')
+		  console.log('✅ OAUTH: Stored encrypted auth data in KV with client validation metadata')
   
 		  // Build redirect URL
 		  const redirectUrl = new URL(body.redirect_uri)
@@ -236,13 +236,11 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 		  if (!clientId) {
 			  clientId = params.get('client_id')
 		  }
-		  // If client_secret was not in Basic Auth, try to get it from the body
+		  
+			// If client_secret was not in Basic Auth, try to get it from the body
 		  if (!clientSecret) {
 			  clientSecret = params.get('client_secret')
 		  }
-  
-		  console.log('🔵 TOKEN: Exchange request received')
-  
 		  // Handle refresh_token grant type
 		  if (grantType === 'refresh_token') {
 			  if (!refreshToken) {
@@ -357,7 +355,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 			  ['decrypt']
 		  )
 		  const authData = await decryptProps(encryptedAuthData.encryptedData, encryptedAuthData.iv, unwrappedKey)
-		  console.log('🔵 TOKEN: Successfully decrypted auth data for User:', authData.userId)
+		  console.log('✅ TOKEN: Decrypted auth data for User:', authData.userId)
   
 		  // Validate PKCE
 		  if (authData.codeChallenge && authData.codeChallengeMethod === 'S256') {
@@ -373,18 +371,73 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 				  console.error('🔴 TOKEN ERROR: PKCE validation failed')
 				  return c.json({ error: 'invalid_grant', error_description: 'PKCE validation failed.' }, 400)
 			  }
-			  console.log('🔵 TOKEN: Successfully validated PKCE')
+			  console.log('🛡️  TOKEN: Validated PKCE')
 		  }
   
-		  // Validate client and redirect URI
-		  if (authData.clientId !== clientId || authData.redirectUri !== redirectUri) {
-			  console.error('🔴 TOKEN ERROR: Client ID or redirect URI mismatch')
-			  return c.json({ error: 'invalid_grant', error_description: 'Client ID or redirect URI mismatch.' }, 400)
+		  // Enhanced client validation with explicit caching support
+		  const validateClientCredentials = (authData: any, receivedClientId: string | null, receivedRedirectUri: string | null) => {
+
+			  // Check if we have client validation metadata (from newer auth flows)
+			  const clientValidation = authData.clientValidation || {}
+			  
+			  // Scenario 1: Perfect match - ideal case
+			  if (authData.clientId === receivedClientId && authData.redirectUri === receivedRedirectUri) {
+				  console.log('✅ TOKEN: Perfect match - client ID and redirect URI both match exactly')
+				  return { isValid: true, reason: 'exact_match' }
+			  }
+			  
+			  // Scenario 2: Redirect URI matches but client ID differs - common with OAuth client caching
+			  if (authData.redirectUri === receivedRedirectUri) {
+				  
+				  // Check if flexibility is enabled:
+				  // 1. Check strictMode
+				  // 2. Check stored client validation metadata (default true for better UX)
+				  const allowFlexibility = !strictMode && (clientValidation.allowClientIdFlexibility !== false)
+				  
+				  if (allowFlexibility) {
+					  console.log('📝 TOKEN: Client ID flexibility enabled - allowing mismatch with redirect URI match')
+					  return { isValid: true, reason: 'redirect_uri_match_with_pkce' }
+				  } else {
+					  console.log('❌ TOKEN: Client ID flexibility disabled - strict validation required')
+					  console.log('🔧 TOKEN: Configuration - AuthHandler strictMode is enabled')
+					  console.log('📋 TOKEN: To enable flexibility for cached clients, set strictMode to "false"')
+					  return { isValid: false, reason: 'strict_validation_failed' }
+				  }
+			  }
+			  
+			  // Scenario 3: Both mismatch - security violation
+			  console.error('❌ TOKEN: Security violation - both client ID and redirect URI mismatch')
+			  console.error('  This indicates either:')
+			  console.error('  1. Attempt to use authorization code with wrong client')
+			  console.error('  2. Authorization code replay attack')
+			  console.error('  3. Client configuration error')
+			  return { isValid: false, reason: 'complete_mismatch' }
+		  }
+		  
+		  // Perform enhanced client validation
+		  const validationResult = validateClientCredentials(authData, clientId, redirectUri)
+		  
+		  if (!validationResult.isValid) {
+			  console.error('🔴 TOKEN ERROR: Client validation failed')
+			  console.error('  Reason:', validationResult.reason)
+			  console.error('  Client ID match:', authData.clientId === clientId)
+			  console.error('  Redirect URI match:', authData.redirectUri === redirectUri)
+			  
+			  let errorDescription = 'Client validation failed.'
+			  if (validationResult.reason === 'complete_mismatch') {
+				  errorDescription = 'Both client ID and redirect URI mismatch. This may indicate a security violation.'
+			  } else if (validationResult.reason === 'strict_validation_failed') {
+				  errorDescription = 'Client ID mismatch not allowed in strict validation mode.'
+			  }
+			  
+			  return c.json({ 
+				  error: 'invalid_grant', 
+				  error_description: errorDescription 
+			  }, 400)
 		  }
   
 		  // Generate access token
 		  const accessToken = crypto.randomUUID()
-		  console.log('🔵 TOKEN: Generated access token for user:', authData.userId)
 		  
 		  // Store token data in KV
 		  const tokenData = {
@@ -416,7 +469,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 		  const wrappedRefreshKey = await wrapKeyWithToken(newRefreshToken, refreshKey, c.env)
 		  const encryptedRefreshData = { encryptedData: encRefreshData, iv: refreshIv, wrappedKey: wrappedRefreshKey }
 		  await c.env.OAUTH_KV.put(`refresh_token:${await hashSecret(newRefreshToken)}`, JSON.stringify(encryptedRefreshData))
-		  console.log('🔵 TOKEN: Encrypted Access, Identity, and Refresh tokens stored in KV')
+		  console.log('🛡️  TOKEN: Encrypted Access, Identity, and Refresh tokens stored in KV')
   
 		  // Clean up authorization code
 		  await c.env.OAUTH_KV.delete(`auth_code:${code}`)
@@ -465,7 +518,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>) => {
 		const wrappedClientKey = await wrapKeyWithToken(clientId, clientKey, c.env)
 		const encryptedClientData = { encryptedData: encClientData, iv: clientIv, wrappedKey: wrappedClientKey }
 		await c.env.OAUTH_KV.put(`client:${clientId}`, JSON.stringify(encryptedClientData))
-		console.log('🔵 REG: Successfully stored encrypted client data in KV')
+		console.log('✅ REG: Stored encrypted client data in KV')
 		return c.json({...clientData, client_secret: clientSecret})
 	  } catch (error) {
 		console.error('🔴 REG ERROR: Client registration failed:', error)
