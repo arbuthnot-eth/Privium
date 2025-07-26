@@ -477,7 +477,7 @@ function AuthorizeHandler({ authParams }: { authParams: { client_id: string | nu
         console.log('🔵 OAUTH: Redirecting to:', data.redirectTo)
         window.location.href = data.redirectTo
         setTimeout(() => {
-         // window.close()
+          window.close()
         }, 2400)
       })
       .catch((err) => {
@@ -496,7 +496,7 @@ function AuthorizeHandler({ authParams }: { authParams: { client_id: string | nu
       window.location.href = redirectUrl.toString()
     }
     console.log('🔴 OAUTH: Attempting to close window...')
-    // window.close()
+      window.close()
   }
 
   if (!ready) return <div>Loading...</div>
