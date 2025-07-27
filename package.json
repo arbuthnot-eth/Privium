@@ -18,6 +18,7 @@
 		"inspector": "npx @modelcontextprotocol/inspector@latest"
 	},
 	"dependencies": {
+		"@crossmint/wallets-sdk": "^0.11.2",
 		"@modelcontextprotocol/sdk": "^1.16.0",
 		"@privy-io/server-auth": "^1.28.4",
 		"agents": "^0.0.109",

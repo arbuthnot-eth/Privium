@@ -2,6 +2,8 @@ import { z } from "zod"
 import { McpAgent } from "agents/mcp"
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { SERVER_NAME, SERVER_VERSION } from "./config"
+import { initCrossmint } from "./authMiddleware"
+import { type Chain } from "@crossmint/wallets-sdk"
 
 // Define our MCP agent with version and register tools
 export class SuperAgent extends McpAgent<Env, DurableObjectState, {}> {
@@ -221,6 +223,43 @@ async function registerTools(agent: any) {
 		}
 	)
 
+	// Create Crossmint Wallet Tool
+	server.registerTool(
+		"create_crossmint_wallet",
+		{
+			title: "Create Crossmint Wallet",
+			description: "Create a new Crossmint wallet for the current user",
+			inputSchema: {}
+		},
+		async () => {
+			try {
+				const crossmintWallets = initCrossmint()
+				const wallet = await crossmintWallets.createWallet({
+					owner: "userId:" + agent.env.privyUser.id,
+					chain: "ethereum" as Chain,
+					signer: {
+						type: "external-wallet", 
+						address: agent.env.privyUser.linkedAccounts[1].address
+					}
+				})
+				return {
+					content: [{
+						type: "text",
+						text: `🔐 Crossmint Smart Wallet\n\n✅ Owner:\t` + agent.env.privyUser.id.substring(10) + `\n💼 Addr:\t${wallet.address}\n🌐 Chain:\t${wallet.chain}`
+					}]
+				}
+			} catch (error) {
+				return {
+					content: [{
+						type: "text",
+						text: `❌ Error: ${error instanceof Error ? error.message : String(error)}`
+					}]
+				}
+			}
+		}
+	)
+
+
 	// Get Authentication Status Tool
 	server.registerTool(
 		"auth_status",
@@ -330,8 +369,6 @@ async function registerTools(agent: any) {
 			}
 		}
 	)
-
-
 }
 
 // Register Resources

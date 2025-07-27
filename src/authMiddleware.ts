@@ -1,15 +1,25 @@
 import { Hono, Context } from 'hono'
 import { cors } from 'hono/cors'
 import { PrivyClient } from "@privy-io/server-auth"
+import { CrossmintWallets, createCrossmint } from "@crossmint/wallets-sdk"
 
 // Initialize Privy Client
-function initPrivyClient(env: any): PrivyClient {
-  return new PrivyClient(env.PRIVY_APP_ID, env.PRIVY_APP_SECRET, {
+export function initPrivyClient(): PrivyClient {
+  return new PrivyClient(process.env.PRIVY_APP_ID, process.env.PRIVY_APP_SECRET, {
     walletApi: {
-      authorizationPrivateKey: env.AUTH_PRIVATE_KEY,
+      authorizationPrivateKey: process.env.AUTH_PRIVATE_KEY,
     },
   })
 }
+
+// Initialize Crossmint Wallets
+export function initCrossmint(): CrossmintWallets {
+	const crossmint = createCrossmint({
+		apiKey: process.env.CROSSMINT_API_KEY as string,
+	})
+	return CrossmintWallets.from(crossmint)
+}
+
 
 // Auth middleware
 export const requireAuth = async (c: Context<{ Bindings: Env }>, next: any) => {
@@ -145,7 +155,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>, strictMode: boolean) =
 		  let verifiedClaims
 		  let privyUser
 		  try {
-			  const privyClient = initPrivyClient(c.env)
+			  const privyClient = initPrivyClient()
 			  verifiedClaims = await privyClient.verifyAuthToken(token)
 			  privyUser = await privyClient.getUser({ idToken })
 			  console.log('🛡️  OAUTH: Privy Identity and Access tokens verified for user:', verifiedClaims.userId)
