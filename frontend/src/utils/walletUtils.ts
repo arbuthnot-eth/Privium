@@ -1,4 +1,3 @@
-// src/utils/walletUtils.ts
 import { useCreateWallet } from '@privy-io/react-auth/extended-chains'
 import { useCallback } from 'react'
 
@@ -20,7 +19,7 @@ export const useSuiWalletCreation = () => {
       )
         
       if (!suiWallet) { 
-        // Create a new Sui wallet using Privy's extended-chains API
+          // Create a new Sui wallet using Privy's extended-chains API
           suiWallet = await createWallet({
           chainType: 'sui'
         })

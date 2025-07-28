@@ -15,8 +15,7 @@ else
   NEW_NAME="$CURRENT_NAME"
 fi
 
-# Use sed to update the APP_NAME in frontend/vite.config.ts
-sed -i "s/APP_NAME: JSON.stringify(\"[^\"]*\")/APP_NAME: JSON.stringify(\"$NEW_NAME\")/" "$FRONTEND_CONFIG_FILE"
+# Use sed to update the SERVER_NAME in src/config.ts
 sed -i "s/NAME: \"[^\"]*\"/NAME: \"$NEW_NAME\"/" "$CONFIG_FILE"
 echo "Updated $FRONTEND_CONFIG_FILE and $CONFIG_FILE to name $NEW_NAME"
 

@@ -4,8 +4,6 @@ import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mc
 import { SERVER_NAME, SERVER_VERSION } from "./config"
 import { createCrossmintWallet, getPrivyWallets } from "./walletLocator"
 
-
-
 // Define our MCP agent with version and register tools
 export class SuperAgent extends McpAgent<Env, DurableObjectState, {}> {
 	server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION, description: SERVER_NAME + ' MCP Server'})
@@ -16,7 +14,7 @@ export class SuperAgent extends McpAgent<Env, DurableObjectState, {}> {
 	  registerTools(this)
 	  registerResources(this)
 	  console.log('⛅',SERVER_NAME, 'Agent initialized, Version:', SERVER_VERSION)
-	  console.log('.      for: ' + this.env.privyUser.id)
+	  console.log('.      for: ' + this.env.privyUser?.id)
 	}
 }
 

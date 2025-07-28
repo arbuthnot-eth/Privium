@@ -3,16 +3,16 @@
 // Runtime types generated with workerd@1.20250712.0 2025-07-16 nodejs_compat
 declare namespace Cloudflare {
 	interface Env {
-		OAUTH_KV: KVNamespace;
-		PRIVY_APP_ID: string;
-		PRIVY_APP_SECRET: string;
-		AUTH_PRIVATE_KEY: string;
-		KDF_SALT: string;
-		QUORUM_ID: string;
-		MCP_OBJECT: DurableObjectNamespace<import("./src/index").SuperAgent>;
-		AI: Ai;
-		ASSETS: Fetcher;
-		privyUser?: any;
+		OAUTH_KV: KVNamespace
+		PRIVY_APP_ID: string
+		PRIVY_APP_SECRET: string
+		AUTH_PRIVATE_KEY: string
+		KDF_SALT: string
+		QUORUM_ID: string
+		MCP_OBJECT: DurableObjectNamespace<import("./src/index").SuperAgent>
+		AI: Ai
+		ASSETS: Fetcher
+		privyUser?: { id: string; email?: { address: string }; linkedAccounts: any[]; /* etc. */ }
 	}
 }
 interface Env extends Cloudflare.Env {}

@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { singleFileCompression } from "vite-plugin-singlefile-compression"
+import { SERVER_NAME } from '../src/config'
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -8,7 +9,7 @@ export default defineConfig({
   define: {
     // Define global constants that can be accessed in the frontend code
     // These values will be inlined during build time
-    APP_NAME: JSON.stringify("Privium"),
+    SERVER_NAME: SERVER_NAME,
     APP_DESCRIPTION: JSON.stringify("MCP Server"),
   },
   build: {

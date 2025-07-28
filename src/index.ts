@@ -49,6 +49,11 @@ app.all('/mcp/*', requireAuth, async (c) => {
 	}
 })
 
+// Prevents asset fallback for invalid metadata paths
+app.get('/.well-known/*', (c) => {
+	return c.text('Not Found', 404)
+})
+
 // Serve static assets (fallback for other requests)
 app.get('*', async (c) => {
 	try {
