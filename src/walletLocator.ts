@@ -9,10 +9,10 @@ export async function createCrossmintWallet(privyUser: any, chain: string) {
             chain: chain as Chain,
             signer: {
                 type: "external-wallet",
-                address: (await getWallet(privyUser, chain))?.address
+                address: (await getPrivyWallets(privyUser, chain)).address
             }
         })
-        return wallet
+        return wallet as Wallet<Chain>
     } catch (error) {
         return {
             content: [{
@@ -23,7 +23,11 @@ export async function createCrossmintWallet(privyUser: any, chain: string) {
     }
 }
 
-async function getWallet(privyUser: any, chain: string) {
-    const wallet = await privyUser.linkedAccounts.find((acc: any) => acc.type === 'wallet' && acc.chainType === chain && acc.walletClientType === 'privy')
-    return wallet
+export async function getPrivyWallets(privyUser: any, chain?: string): Promise<any | any[]> {
+    if (chain) {
+        const wallet = privyUser.linkedAccounts?.find((acc: any) => acc.type === 'wallet' && acc.chainType === chain && acc.walletClientType === 'privy');
+        return wallet as Wallet<Chain>;
+    }
+    const wallets = privyUser.linkedAccounts?.filter((acc: any) => acc.type === 'wallet' && acc.walletClientType === 'privy');
+    return wallets as any[];
 }

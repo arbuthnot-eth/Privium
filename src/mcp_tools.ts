@@ -2,7 +2,8 @@ import { z } from "zod"
 import { McpAgent } from "agents/mcp"
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { SERVER_NAME, SERVER_VERSION } from "./config"
-import { createCrossmintWallet } from "./walletLocator"
+import { createCrossmintWallet, getPrivyWallets } from "./walletLocator"
+
 
 
 // Define our MCP agent with version and register tools
@@ -174,41 +175,24 @@ async function registerTools(agent: any) {
 
 	// Get User Wallets Tool
 	server.registerTool(
-		"get_user_wallets",
+		"Get Privy Wallets",
 		{
-			title: "Get User Wallets",
-			description: "Get all wallets connected to the current user",
+			title: "Get App Wallets",
+			description: "Get all embedded wallets connected to the current user",
 			inputSchema: {}
 		},
 		async () => {
 			try {
-				if (!user) {
-					return {
-						content: [{
-							type: "text",
-							text: "❌ User not authenticated"
-						}]
-					}
-				}
-				const wallets = user.linkedAccounts?.filter((acc: any) => acc.type === 'wallet') || []
-				
-				if (wallets.length === 0) {
-					return {
-						content: [{
-							type: "text",
-							text: "📭 No wallets connected to this account"
-						}]
-					}
-				}
+				const wallets = await getPrivyWallets(user)
 
-				const walletInfo = wallets.map((wallet: any, index: number) => {
-					return `${index + 1}. **${wallet.address}**\n   📋 Type: ${wallet.walletClientType || 'Unknown'}\n   🌐 Chain: ${wallet.chainType || 'EVM'}\n   📅 Connected: ${wallet.addedOn ? new Date(wallet.addedOn).toLocaleDateString() : 'Unknown'}`
+				const walletsInfo = wallets.map((wallet: any, index: number) => {
+					return `${index + 1}. ${wallet.address}\n   📋 Type: ${wallet.walletClientType || 'Unknown'}\n   🌐 Chain: ${wallet.chainType || 'EVM'}`
 				}).join('\n\n')
 
 				return {
 					content: [{
 						type: "text",
-						text: `💼 **Connected Wallets** (${wallets.length})\n\n${walletInfo}`
+						text: `💼 Embedded Wallets (${wallets.length}):\n\n${walletsInfo}`
 					}]
 				}
 			} catch (error) {
@@ -231,14 +215,10 @@ async function registerTools(agent: any) {
 			inputSchema: {}
 		},
 		async () => {
-			const ethwallet = await createCrossmintWallet(user, "ethereum")
-			const solwallet = await createCrossmintWallet(user, "solana")
-			// const suiwallet = createCrossmintWallet(user, "sui")
-
 			const wallets = {
-				ethereum: ethwallet, 
-				solana: solwallet
-				// sui: suiwallet
+				ethereum: await createCrossmintWallet(user, "ethereum"), 
+				solana: await createCrossmintWallet(user, "solana")
+				// sui: await createCrossmintWallet(user, "sui")
 			};
 			return {
 				content: [{
