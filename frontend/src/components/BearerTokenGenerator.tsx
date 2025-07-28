@@ -1,10 +1,9 @@
 // frontend/src/components/BearerTokenGenerator.tsx
-import { usePrivy, getAccessToken, useIdentityToken } from '@privy-io/react-auth';
-import { useState } from 'react';
-import { useSuiWalletCreation } from '../utils/walletUtils';
-import CopyToClipboardButton from './CopyButton';
-import LogoutButton from './LogoutButton';
-import { SERVER_NAME } from '../../../src/config'
+import { usePrivy, getAccessToken, useIdentityToken } from '@privy-io/react-auth'
+import { useState } from 'react'
+import { useSuiWalletCreation } from '../utils/walletUtils'
+import CopyToClipboardButton from './CopyButton'
+import LogoutButton from './LogoutButton'
 
 interface RegisterClientResponse {
     client_id: string;

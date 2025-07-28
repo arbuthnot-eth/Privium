@@ -1,6 +1,5 @@
 // frontend/src/components/LoginScreen.tsx
 import { useLogin } from '@privy-io/react-auth'
-import { SERVER_NAME } from '../../../src/config'
 
 export default function LoginScreen() {
   const { login } = useLogin({

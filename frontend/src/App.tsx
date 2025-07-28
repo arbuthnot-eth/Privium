@@ -1,6 +1,5 @@
 import { usePrivy } from '@privy-io/react-auth'
 import { useState, useEffect } from 'react'
-import { SERVER_NAME } from '../../src/config'
 import LoginScreen from './components/LoginScreen'
 import BearerTokenGenerator from './components/BearerTokenGenerator'
 import AuthorizeHandler from './components/AuthorizeHandler'

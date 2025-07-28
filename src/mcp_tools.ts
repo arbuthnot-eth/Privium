@@ -11,17 +11,15 @@ export class SuperAgent extends McpAgent<Env, DurableObjectState, {}> {
 	// Initialize the MCP agent
 	async init() {
 	  // Register tools and resources from external file (mcp_tools.ts)
-	  registerTools(this)
-	  registerResources(this)
+	  registerTools(this.server, this.env.privyUser)
+	  registerResources(this.server, this.env.privyUser)
 	  console.log('⛅',SERVER_NAME, 'Agent initialized, Version:', SERVER_VERSION)
 	  console.log('.      for: ' + this.env.privyUser?.id)
 	}
 }
 
 // Register Tools
-async function registerTools(agent: any) {
-	const server = agent.server
-	const user = agent.env.privyUser
+async function registerTools(server: McpServer, user: any) {
 
 	// Simple addition tool
 	server.registerTool(
@@ -339,9 +337,8 @@ async function registerTools(agent: any) {
 }
 
 // Register Resources
-async function registerResources(agent: any) {
-	const server = agent.server
-	const user = agent.env.privyUser
+async function registerResources(server: McpServer, user: any) {
+
 	// Add a dynamic greeting resource
 	server.registerResource(
 			"greeting",
