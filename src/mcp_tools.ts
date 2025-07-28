@@ -2,8 +2,8 @@ import { z } from "zod"
 import { McpAgent } from "agents/mcp"
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { SERVER_NAME, SERVER_VERSION } from "./config"
-import { initCrossmint } from "./authMiddleware"
-import { type Chain } from "@crossmint/wallets-sdk"
+import { createCrossmintWallet } from "./walletLocator"
+
 
 // Define our MCP agent with version and register tools
 export class SuperAgent extends McpAgent<Env, DurableObjectState, {}> {
@@ -22,6 +22,7 @@ export class SuperAgent extends McpAgent<Env, DurableObjectState, {}> {
 // Register Tools
 async function registerTools(agent: any) {
 	const server = agent.server
+	const user = agent.env.privyUser
 
 	// Simple addition tool
 	server.registerTool(
@@ -105,7 +106,7 @@ async function registerTools(agent: any) {
 		},
 		async () => {
 			try {
-				if (!agent.env.privyUser) {
+				if (!user) {
 					return {
 						content: [{
 							type: "text",
@@ -113,7 +114,7 @@ async function registerTools(agent: any) {
 						}]
 					}
 				}
-				const user = agent.env.privyUser
+
 				return {
 					content: [{
 						type: "text", 
@@ -181,7 +182,7 @@ async function registerTools(agent: any) {
 		},
 		async () => {
 			try {
-				if (!agent.env.privyUser) {
+				if (!user) {
 					return {
 						content: [{
 							type: "text",
@@ -189,8 +190,6 @@ async function registerTools(agent: any) {
 						}]
 					}
 				}
-
-				const user = agent.env.privyUser
 				const wallets = user.linkedAccounts?.filter((acc: any) => acc.type === 'wallet') || []
 				
 				if (wallets.length === 0) {
@@ -225,36 +224,28 @@ async function registerTools(agent: any) {
 
 	// Create Crossmint Wallet Tool
 	server.registerTool(
-		"create_crossmint_wallet",
+		"getSmartWallets",
 		{
 			title: "Create Crossmint Wallet",
 			description: "Create a new Crossmint wallet for the current user",
 			inputSchema: {}
 		},
 		async () => {
-			try {
-				const crossmintWallets = initCrossmint()
-				const wallet = await crossmintWallets.createWallet({
-					owner: "userId:" + agent.env.privyUser.id,
-					chain: "ethereum" as Chain,
-					signer: {
-						type: "external-wallet", 
-						address: agent.env.privyUser.linkedAccounts[1].address
-					}
-				})
-				return {
-					content: [{
-						type: "text",
-						text: `🔐 Crossmint Smart Wallet\n\n✅ Owner:\t` + agent.env.privyUser.id.substring(10) + `\n💼 Addr:\t${wallet.address}\n🌐 Chain:\t${wallet.chain}`
-					}]
-				}
-			} catch (error) {
-				return {
-					content: [{
-						type: "text",
-						text: `❌ Error: ${error instanceof Error ? error.message : String(error)}`
-					}]
-				}
+			const ethwallet = await createCrossmintWallet(user, "ethereum")
+			const solwallet = await createCrossmintWallet(user, "solana")
+			// const suiwallet = createCrossmintWallet(user, "sui")
+
+			const wallets = {
+				ethereum: ethwallet, 
+				solana: solwallet
+				// sui: suiwallet
+			};
+			return {
+				content: [{
+					type: "text",
+					mimeType: "application/json",
+					text: JSON.stringify(wallets)
+				}]
 			}
 		}
 	)
@@ -270,7 +261,7 @@ async function registerTools(agent: any) {
 		},
 		async () => {
 			try {
-				if (!agent.env.privyUser) {
+				if (!user) {
 					return {
 						content: [{
 							type: "text",
@@ -279,7 +270,6 @@ async function registerTools(agent: any) {
 					}
 				}
 
-				const user = agent.env.privyUser
 				const now = Date.now()
 				const createdAt = new Date(user.createdAt).getTime()
 				const sessionAge = Math.floor((now - createdAt) / (1000 * 60 * 60 * 24)) // Days
@@ -311,7 +301,7 @@ async function registerTools(agent: any) {
 		},
 		async () => {
 			try {
-				if (!agent.env.privyUser) {
+				if (!user) {
 					return {
 						content: [{
 							type: "text",
@@ -320,7 +310,6 @@ async function registerTools(agent: any) {
 					}
 				}
 
-				const user = agent.env.privyUser
 				const accounts = user.linkedAccounts || []
 				
 				if (accounts.length === 0) {
@@ -374,6 +363,7 @@ async function registerTools(agent: any) {
 // Register Resources
 async function registerResources(agent: any) {
 	const server = agent.server
+	const user = agent.env.privyUser
 	// Add a dynamic greeting resource
 	server.registerResource(
 			"greeting",
@@ -404,10 +394,9 @@ async function registerResources(agent: any) {
 			},
 			async (uri: URL, extra: any) => {
 				try {
-					if (!agent.env.privyUser) {
+					if (!user) {
 						throw new Error("User context not available")
 					}
-					const user = agent.env.privyUser
 					return {
 						contents: [{
 							uri: uri.href,
@@ -437,11 +426,10 @@ async function registerResources(agent: any) {
 		},
 		async (uri: URL, extra: any) => {
 			try {
-				if (!agent.env.privyUser) {
+				if (!user) {
 					throw new Error("User context not available")
 				}
 				// Use the already-stored Privy user data
-				const user = agent.env.privyUser
 				return {
 					contents: [{
 						uri: "user://" + user.id,
@@ -471,11 +459,10 @@ async function registerResources(agent: any) {
 		},
 		async (uri: URL, extra: any) => {
 			try {
-				if (!agent.env.privyUser) {
+				if (!user) {
 					throw new Error("User context not available")
 				}
 				// Use the already-stored Privy user data
-				const user = agent.env.privyUser
 				const wallets = user.linkedAccounts.filter(
 					(account: any) => account.type === 'wallet'
 				)
