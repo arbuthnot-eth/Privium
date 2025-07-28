@@ -4,23 +4,28 @@ import { Wallet, type Chain } from "@crossmint/wallets-sdk"
 export async function createCrossmintWallet(privyUser: Env["privyUser"], chain: string) {
     try {
         const crossmintWallets = initCrossmint()
+
+        const privyWallet = await getPrivyWallets(privyUser, chain)
+
+
         const wallet = await crossmintWallets.createWallet({
-            owner: "userId:" + privyUser?.id,
             chain: chain as Chain,
             signer: {
                 type: "external-wallet",
-                address: (await getPrivyWallets(privyUser, chain)).address
-            }
+                address: privyWallet.address
+            },
+            owner: "userId:" + privyUser?.id,
         })
         return wallet as Wallet<Chain>
     } catch (error) {
-        return {
-            content: [{
-                type: "text",
-                text: `❌ Error: ${error instanceof Error ? error.message : String(error)}`
-            }]
-        }
+        console.error('Error creating Crossmint wallet:', error)
+        throw error
     }
+}
+
+export async function getCrossmintBalances(wallet: Wallet<Chain>) {
+    const balances = await wallet.balances()
+    return balances
 }
 
 export async function getPrivyWallets(privyUser: Env["privyUser"], chain?: string): Promise<any | any[]> {

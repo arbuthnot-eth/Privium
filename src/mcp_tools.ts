@@ -2,19 +2,19 @@ import { z } from "zod"
 import { McpAgent } from "agents/mcp"
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { SERVER_NAME, SERVER_VERSION } from "./config"
-import { createCrossmintWallet, getPrivyWallets } from "./walletLocator"
+import { createCrossmintWallet, getPrivyWallets, getCrossmintBalances } from "./walletLocator"
 
 // Define our MCP agent with version and register tools
 export class SuperAgent extends McpAgent<Env, DurableObjectState, {}> {
-	server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION, description: SERVER_NAME + ' MCP Server'})
-	
+	server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION, description: SERVER_NAME + ' MCP Server' })
+
 	// Initialize the MCP agent
 	async init() {
-	  // Register tools and resources from external file (mcp_tools.ts)
-	  registerTools(this.server, this.env.privyUser)
-	  registerResources(this.server, this.env.privyUser)
-	  console.log('⛅',SERVER_NAME, 'Agent initialized, Version:', SERVER_VERSION)
-	  console.log('.      for: ' + this.env.privyUser?.id)
+		// Register tools and resources from external file (mcp_tools.ts)
+		registerTools(this.server, this.env.privyUser)
+		registerResources(this.server, this.env.privyUser)
+		console.log('⛅', SERVER_NAME, 'Agent initialized, Version:', SERVER_VERSION)
+		console.log('.      for: ' + this.env.privyUser?.id)
 	}
 }
 
@@ -24,11 +24,11 @@ async function registerTools(server: McpServer, user: any) {
 	// Simple addition tool
 	server.registerTool(
 		"add",
-		{ 
+		{
 			title: "Addition Tool",
 			description: "A simple tool to add two numbers",
 			inputSchema: {
-				a: z.number().describe("First number"), 
+				a: z.number().describe("First number"),
 				b: z.number().describe("Second number")
 			},
 		},
@@ -47,11 +47,11 @@ async function registerTools(server: McpServer, user: any) {
 				name: z.string().describe('Name to greet'),
 			},
 		},
-		async({ name }: { name: string }) => {
+		async ({ name }: { name: string }) => {
 			return { content: [{ type: "text", text: `Hello, ${name}!` }] }
 		}
 	)
-	
+
 	// Calculator tool with multiple operations
 	server.registerTool(
 		"calculate",
@@ -114,7 +114,7 @@ async function registerTools(server: McpServer, user: any) {
 
 				return {
 					content: [{
-						type: "text", 
+						type: "text",
 						text: `✅ **User Profile**\n\n📧 **Email:** ${user.email?.address || 'Not set'}\n🆔 **ID:** ${user.id}\n📅 **Created:** ${new Date(user.createdAt).toLocaleDateString()}\n👤 **Type:** ${user.isGuest ? 'Guest' : 'Full User'}\n💼 **Wallets:** ${user.linkedAccounts?.filter((acc: any) => acc.type === 'wallet').length || 0}\n\n**Available Resources:**\n- \`user://me\` - Full user data\n- \`user://profile\` - Structured profile`
 					}]
 				}
@@ -131,7 +131,7 @@ async function registerTools(server: McpServer, user: any) {
 
 	// List Resources Tool
 	server.registerTool(
-		"list_resources", 
+		"list_resources",
 		{
 			title: "List Resources",
 			description: "Shows available resources and how to access them",
@@ -145,7 +145,7 @@ async function registerTools(server: McpServer, user: any) {
 					example: "Just type: user://me"
 				},
 				{
-					name: "user://[anything]/profile", 
+					name: "user://[anything]/profile",
 					description: "Structured user profile (clean format)",
 					example: "Try: user://current/profile"
 				},
@@ -156,15 +156,15 @@ async function registerTools(server: McpServer, user: any) {
 				}
 			]
 
-			const help = `🔗 **Available Resources**\n\n${resourceList.map(r => 
+			const help = `🔗 **Available Resources**\n\n${resourceList.map(r =>
 				`**${r.name}**\n${r.description}\n💡 ${r.example}\n`
 			).join('\n')}\n📝 **How to use:** Go to Resources tab → Type URI → Click "Fetch Resource"`
 
-			return { 
-				content: [{ 
-					type: "text", 
+			return {
+				content: [{
+					type: "text",
 					text: help
-				}] 
+				}]
 			}
 		}
 	)
@@ -211,10 +211,20 @@ async function registerTools(server: McpServer, user: any) {
 			inputSchema: {}
 		},
 		async () => {
+			const ethWallet = await createCrossmintWallet(user, "ethereum")
+			const solanaWallet = await createCrossmintWallet(user, "solana")
+			// sui: await createCrossmintWallet(user, "sui")
+
+
 			const wallets = {
-				ethereum: await createCrossmintWallet(user, "ethereum"), 
-				solana: await createCrossmintWallet(user, "solana")
-				// sui: await createCrossmintWallet(user, "sui")
+				ethereum: {
+					wallet: ethWallet,
+					balances: await getCrossmintBalances(ethWallet),
+				},
+				solana: {
+					wallet: solanaWallet,
+					balances: await getCrossmintBalances(solanaWallet),
+				},
 			};
 			return {
 				content: [{
@@ -287,7 +297,7 @@ async function registerTools(server: McpServer, user: any) {
 				}
 
 				const accounts = user.linkedAccounts || []
-				
+
 				if (accounts.length === 0) {
 					return {
 						content: [{
@@ -300,7 +310,7 @@ async function registerTools(server: McpServer, user: any) {
 				const accountSummary = accounts.map((account: any, index: number) => {
 					const type = account.type
 					let details = ''
-					
+
 					switch (type) {
 						case 'wallet':
 							details = `Address: ${account.address}\nClient: ${account.walletClientType || 'Unknown'}`
@@ -314,7 +324,7 @@ async function registerTools(server: McpServer, user: any) {
 						default:
 							details = `Details: ${JSON.stringify(account, null, 2)}`
 					}
-					
+
 					return `${index + 1}. **${type.toUpperCase()}**\n   ${details.replace(/\n/g, '\n   ')}`
 				}).join('\n\n')
 
@@ -341,62 +351,62 @@ async function registerResources(server: McpServer, user: any) {
 
 	// Add a dynamic greeting resource
 	server.registerResource(
-			"greeting",
-			new ResourceTemplate("greeting://{name}", { list: undefined }),
-			{
-				title: "Greeting Resource",      // Display name for UI
-				description: "Dynamic greeting generator"
-			},
-			async (uri: URL, extra: any) => { // Explicitly type uri and extra
-				// Assuming 'name' is passed in the 'extra' object by the ResourceTemplate
-				const name = extra.name || 'Guest' // Access name directly from extra
+		"greeting",
+		new ResourceTemplate("greeting://{name}", { list: undefined }),
+		{
+			title: "Greeting Resource",      // Display name for UI
+			description: "Dynamic greeting generator"
+		},
+		async (uri: URL, extra: any) => { // Explicitly type uri and extra
+			// Assuming 'name' is passed in the 'extra' object by the ResourceTemplate
+			const name = extra.name || 'Guest' // Access name directly from extra
+			return {
+				contents: [{
+					uri: uri.href,
+					text: `Hello, ${name}!`
+				}]
+			}
+		}
+	)
+
+	// Add a simpler "me" resource for easy access
+	server.registerResource(
+		"Current User",
+		new ResourceTemplate("user://me", { list: undefined }),
+		{
+			title: "Current User",
+			description: "Fetches the current authenticated user's information"
+		},
+		async (uri: URL, extra: any) => {
+			try {
+				if (!user) {
+					throw new Error("User context not available")
+				}
 				return {
 					contents: [{
 						uri: uri.href,
-						text: `Hello, ${name}!`
+						mimeType: "application/json",
+						text: JSON.stringify(user, null, 2)
+					}]
+				}
+			} catch (error) {
+				return {
+					contents: [{
+						uri: uri.href,
+						mimeType: "application/json",
+						text: JSON.stringify({ error: "Failed to fetch current user" })
 					}]
 				}
 			}
-	)
-	
-	// Add a simpler "me" resource for easy access
-	server.registerResource(
-			"Current User",
-			new ResourceTemplate("user://me", { list: undefined }),
-			{
-				title: "Current User",
-				description: "Fetches the current authenticated user's information"
-			},
-			async (uri: URL, extra: any) => {
-				try {
-					if (!user) {
-						throw new Error("User context not available")
-					}
-					return {
-						contents: [{
-							uri: uri.href,
-							mimeType: "application/json",
-							text: JSON.stringify(user, null, 2)
-						}]
-					}
-				} catch (error) {
-					return {
-						contents: [{
-							uri: uri.href,
-							mimeType: "application/json",
-							text: JSON.stringify({ error: "Failed to fetch current user" })
-						}]
-					}
-				}
-			}
+		}
 	)
 
-			// Add user resource  
+	// Add user resource  
 	server.registerResource(
 		"whoami",
 		new ResourceTemplate("user://me", { list: undefined }),
 		{
-			title: "User Information", 
+			title: "User Information",
 			description: "Fetches the current user's Privy profile information"
 		},
 		async (uri: URL, extra: any) => {
@@ -460,5 +470,5 @@ async function registerResources(server: McpServer, user: any) {
 		}
 	)
 
-	
+
 }
