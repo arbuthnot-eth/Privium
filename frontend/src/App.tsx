@@ -51,7 +51,7 @@ export default function App() {
   return (
     <div style={{ textAlign: 'center', padding: '2rem' }}>
       <h1>{SERVER_NAME} MCP Server</h1>
-      <p>User {user?.id} is logged in.</p>
+      <p>User {user?.id} is connected.</p>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '1rem' }}>
       </div>
       <div style={{ marginTop: '1rem' }}>

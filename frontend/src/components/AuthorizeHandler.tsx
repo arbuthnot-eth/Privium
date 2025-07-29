@@ -154,9 +154,9 @@ export default function AuthorizeHandler({ authParams }: AuthorizeHandlerProps) 
     return (
       <div style={{ textAlign: 'center', padding: '2rem' }}>
         <h1>Authorize Access</h1>
-        <p>Please sign in to grant access to the application.</p>
+        <p>Connect to grant access to {SERVER_NAME}</p>
         <button onClick={login} style={{ padding: '12px 24px', fontSize: '16px', cursor: 'pointer' }}>
-          Sign In
+          Connect
         </button>
       </div>
     );
@@ -261,7 +261,7 @@ export default function AuthorizeHandler({ authParams }: AuthorizeHandlerProps) 
                     padding: 0
                   }}
                 >
-                  Switch Account
+                  Disconnect
                 </button>
               </div>
             </div>

@@ -1,5 +1,5 @@
 import { Hono, Context } from 'hono'
-import { cors } from 'hono/cors'
+import { cors } from 'hono/cors' 
 import { PrivyClient } from "@privy-io/server-auth"
 import { CrossmintWallets, createCrossmint } from "@crossmint/wallets-sdk"
 
@@ -100,7 +100,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>, strictMode: boolean) =
 	// OAuth Discovery Endpoints
 	app.get('/.well-known/oauth-authorization-server', (c) => {
 		const url = new URL(c.req.url)
-		c.header('Cache-Control', 'public, max-age=3600')
+		c.header('Cache-Control', 'public, max-age=86400')
 		return c.json({
 			issuer: url.origin,
 			authorization_endpoint: `${url.origin}/authorize`,
@@ -117,7 +117,7 @@ export const authHandler = (app: Hono<{ Bindings: Env }>, strictMode: boolean) =
 	})
 
 	// OAuth Protected Resource Endpoints
-	app.get('/.well-known/oauth-protected-resource', (c) => {
+	app.get('/.well-known/oauth-protected-resource*', (c) => {
 		const url = new URL(c.req.url)
 		c.header('Cache-Control', 'public, max-age=3600')
 		return c.json({
@@ -595,58 +595,13 @@ export const authHandler = (app: Hono<{ Bindings: Env }>, strictMode: boolean) =
 			const params = new URLSearchParams(body)
 			const token = params.get('token')
 			const revokeAll = params.get('revoke_all') === 'true'
-
+	
 			if (!token) {
-				return c.json({ error: 'invalid_request' }, 400)
+			  return c.json({ error: 'invalid_request' }, 400)
 			}
-
-			// Hash token for lookup
-			const hashedToken = await hashSecret(token)
-
-			// Fetch token data to get userId (access or refresh)
-			let tokenDataStr = await c.env.OAUTH_KV.get(`access_token:${hashedToken}`) ||
-				await c.env.OAUTH_KV.get(`refresh_token:${hashedToken}`)
-
-			if (!tokenDataStr) {
-				return c.json({ error: 'invalid_token' }, 400)
-			}
-
-			// Decrypt token data
-			const encryptedTokenData = JSON.parse(tokenDataStr)
-			const unwrappedKey = await crypto.subtle.unwrapKey(
-				'raw',
-				base64ToArrayBuffer(encryptedTokenData.wrappedKey),
-				await deriveKeyFromToken(token, c.env),
-				{ name: 'AES-KW' },
-				{ name: 'AES-GCM' },
-				false,
-				['decrypt']
-			)
-
-			const unwrappedHmacKey = await crypto.subtle.unwrapKey(
-				'raw',
-				base64ToArrayBuffer(encryptedTokenData.hmacKey),
-				await deriveKeyFromToken(token, c.env),
-				{ name: 'AES-KW' },
-				{ name: 'HMAC', hash: 'SHA-256' },
-				true,
-				['verify']
-			)
-
-			// Decrypt token data
-			const tokenData = await decryptProps(encryptedTokenData.encryptedData, encryptedTokenData.iv, unwrappedKey, encryptedTokenData.hmac, unwrappedHmacKey)
-			const userId = tokenData.privyUser.id
-
-			// revoke specific token
-			await c.env.OAUTH_KV.delete(`access_token:${hashedToken}`)
-			await c.env.OAUTH_KV.delete(`refresh_token:${hashedToken}`)
-			await c.env.OAUTH_KV.delete(`auth_code:${hashedToken}`)
-
-			// revoke all tokens for user
-			if (revokeAll) {
-				await c.env.OAUTH_KV.put(`revoked_user:${userId}`, Date.now().toString(), { expirationTtl: 2592000})
-			}
-
+	
+			await revokeToken(c.env, token, revokeAll)
+	
 			return c.json({ message: revokeAll ? 'All user tokens revoked' : 'Token revoked' })
 		} catch (error) {
 			console.error('🔴 REVOKE ERROR: Token revocation failed:', error)
@@ -654,6 +609,27 @@ export const authHandler = (app: Hono<{ Bindings: Env }>, strictMode: boolean) =
 				error: 'server_error',
 				details: error instanceof Error ? error.message : String(error)
 			}, 500)
+		}
+	})
+
+	// NEW: Handle DELETE /mcp by triggering token revocation (reuses /revoke logic)
+	app.delete('/mcp', requireAuth, async (c) => {
+		try {
+			// Extract Bearer token from header
+			const authHeader = c.req.header('Authorization')
+			if (!authHeader || !authHeader.startsWith('Bearer ')) {
+				return c.json({ error: 'invalid_token' }, 401)
+			}
+			const token = authHeader.substring(7)
+			
+			// Revoke the specific token (not all)
+			await revokeToken(c.env, token, false)
+			
+			// Return 204 No Content
+			return c.json({ message: 'User tokens revoked' })
+		} catch (error) {
+			console.error('🔴 MCP ERROR: DELETE /mcp failed:', error)
+			return c.text('Internal Server Error', 500)
 		}
 	})
 }
@@ -752,4 +728,35 @@ async function deriveKeyFromToken(tokenStr: string, env: Env): Promise<CryptoKey
 		false,
 		['wrapKey', 'unwrapKey']
 	)
+}
+
+// Shared revocation function
+export async function revokeToken(env: Env, token: string, revokeAll: boolean = false) {
+	try {
+		const hashedToken = await hashSecret(token)
+		
+		// Revoke specific token
+		await env.OAUTH_KV.delete(`access_token:${hashedToken}`)
+		await env.OAUTH_KV.delete(`refresh_token:${hashedToken}`)
+		await env.OAUTH_KV.delete(`auth_code:${hashedToken}`)
+		
+		if (revokeAll) {
+			// Fetch and decrypt to get userId
+			let tokenDataStr = await env.OAUTH_KV.get(`access_token:${hashedToken}`) ||
+				await env.OAUTH_KV.get(`refresh_token:${hashedToken}`)
+			if (tokenDataStr) {
+				const encryptedTokenData = JSON.parse(tokenDataStr);
+				const unwrappedKey = await crypto.subtle.unwrapKey('raw', base64ToArrayBuffer(encryptedTokenData.wrappedKey), await deriveKeyFromToken(token, env), { name: 'AES-KW' }, { name: 'AES-GCM' }, false, ['decrypt'])
+				const unwrappedHmacKey = await crypto.subtle.unwrapKey('raw', base64ToArrayBuffer(encryptedTokenData.hmacKey), await deriveKeyFromToken(token, env), { name: 'AES-KW' }, { name: 'HMAC', hash: 'SHA-256' }, true, ['verify'])
+				const tokenData = await decryptProps(encryptedTokenData.encryptedData, encryptedTokenData.iv, unwrappedKey, encryptedTokenData.hmac, unwrappedHmacKey)
+				const userId = tokenData.privyUser.id
+				await env.OAUTH_KV.put(`revoked_user:${userId}`, Date.now().toString(), { expirationTtl: 2592000 })
+			}
+		}
+		
+		console.log(`🛡️  MCP: Disconnected and revoked user token${revokeAll ? ' and all user tokens' : ''}`)
+	} catch (error) {
+		console.error('🔴 Revoke token failed:', error)
+		throw error
+	}
 }

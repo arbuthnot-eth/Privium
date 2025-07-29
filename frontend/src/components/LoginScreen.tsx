@@ -11,9 +11,8 @@ export default function LoginScreen() {
   return (
     <div style={{ textAlign: 'center', padding: '2rem' }}>
       <h1>{SERVER_NAME} MCP Server</h1>
-      <p>Please sign in to continue</p>
       <button onClick={login} style={{ padding: '12px 24px', fontSize: '16px', cursor: 'pointer' }}>
-        Sign In
+        Connect
       </button>
     </div>
   );
