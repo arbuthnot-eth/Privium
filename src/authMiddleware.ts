@@ -61,7 +61,24 @@ export const requireAuth = async (c: Context<{ Bindings: Env }>, next: any) => {
 		false,
 		['decrypt']
 	)
-	const tokenData = await decryptProps(encryptedTokenData.encryptedData, encryptedTokenData.iv, unwrappedTokenKey)
+	const unwrappedHmacKey = await crypto.subtle.unwrapKey(
+		'raw',
+		base64ToArrayBuffer(encryptedTokenData.hmacKey),
+		await deriveKeyFromToken(token, c.env),
+		{ name: 'AES-KW' },
+		{ name: 'HMAC', hash: 'SHA-256' },
+		true,
+		['verify']
+	)
+	const tokenData = await decryptProps(encryptedTokenData.encryptedData, encryptedTokenData.iv, unwrappedTokenKey, encryptedTokenData.hmac, unwrappedHmacKey)
+
+	// Check user-level revocation
+	const revocationTimestamp = await c.env.OAUTH_KV.get(`revoked_user:${tokenData.privyUser.id}`)
+	if (revocationTimestamp && parseInt(revocationTimestamp) > tokenData.createdAt) {
+		console.error('🔴 MCP ERROR: User AccessToken has been revoked')
+		return c.json({ error: 'invalid_token', error_description: 'User AccessToken has been revoked' }, 401)
+	}
+
 	console.log('🛡️  MCP: Validated decrypted token for user:', tokenData.privyUser.id)
 
 	// Set user context
@@ -198,9 +215,10 @@ export const authHandler = (app: Hono<{ Bindings: Env }>, strictMode: boolean) =
 			}
 
 			// Encrypt auth data
-			const { encryptedData, iv, key } = await encryptProps(authData)
+			const { encryptedData, iv, key, hmac, hmacKey } = await encryptProps(authData)
 			const wrappedKey = await wrapKeyWithToken(authCode, key, c.env)
-			const encryptedAuthData = { encryptedData, iv, wrappedKey }
+			const wrappedHmacKey = await wrapKeyWithToken(authCode, hmacKey, c.env)
+			const encryptedAuthData = { encryptedData, iv, wrappedKey, hmac, hmacKey: wrappedHmacKey }
 			await secureKvPut(c.env, `auth_code:${authCode}`, JSON.stringify(encryptedAuthData), 600)
 			console.log('✅ OAUTH: Stored encrypted auth data in KV with client validation metadata')
 
@@ -282,8 +300,18 @@ export const authHandler = (app: Hono<{ Bindings: Env }>, strictMode: boolean) =
 					false,
 					['decrypt']
 				)
+
+				const unwrappedHmacKey = await crypto.subtle.unwrapKey(
+					'raw',
+					base64ToArrayBuffer(encryptedRefreshData.hmacKey),
+					await deriveKeyFromToken(refreshToken, c.env),
+					{ name: 'AES-KW' },
+					{ name: 'HMAC', hash: 'SHA-256' },
+					true,
+					['verify']
+				)
 				// Decrypt refresh token data
-				const refreshData = await decryptProps(encryptedRefreshData.encryptedData, encryptedRefreshData.iv, unwrappedRefreshKey)
+				const refreshData = await decryptProps(encryptedRefreshData.encryptedData, encryptedRefreshData.iv, unwrappedRefreshKey, encryptedRefreshData.hmac, unwrappedHmacKey)
 				console.log('🔵 TOKEN: Decrypted refresh data retrieved for user:', refreshData.userId)
 
 				// Generate new access token
@@ -304,10 +332,11 @@ export const authHandler = (app: Hono<{ Bindings: Env }>, strictMode: boolean) =
 				}
 
 				// Encrypt access token data
-				const { encryptedData: newEncAccessData, iv: newAccessIv, key: newAccessKey } = await encryptProps(tokenData)
+				const { encryptedData: newEncAccessData, iv: newAccessIv, key: newAccessKey, hmac: newAccessHmac, hmacKey: newAccessHmacKey } = await encryptProps(tokenData)
 				const newWrappedAccessKey = await wrapKeyWithToken(newAccessToken, newAccessKey, c.env)
-				const newEncryptedTokenData = { encryptedData: newEncAccessData, iv: newAccessIv, wrappedKey: newWrappedAccessKey }
-				await secureKvPut(c.env, `access_token:${await hashSecret(newAccessToken)}`, JSON.stringify(newEncryptedTokenData), 36000)
+				const newWrappedHmacKey = await wrapKeyWithToken(newAccessToken, newAccessHmacKey, c.env)
+				const newEncryptedTokenData = { encryptedData: newEncAccessData, iv: newAccessIv, wrappedKey: newWrappedAccessKey, hmac: newAccessHmac, hmacKey: newWrappedHmacKey }
+				await secureKvPut(c.env, `access_token:${await hashSecret(newAccessToken)}`, JSON.stringify(newEncryptedTokenData), 18000)
 				console.log('🔵 TOKEN: Encrypted access token (new) stored')
 
 				// Store new encrypted refresh token
@@ -321,9 +350,10 @@ export const authHandler = (app: Hono<{ Bindings: Env }>, strictMode: boolean) =
 				}
 
 				// Encrypt refresh token data
-				const { encryptedData: newEncRefreshData, iv: newRefreshIv, key: newRefreshKey } = await encryptProps(newRefreshData)
+				const { encryptedData: newEncRefreshData, iv: newRefreshIv, key: newRefreshKey, hmac: newRefreshHmac, hmacKey: newRefreshHmacKey } = await encryptProps(newRefreshData)
 				const newWrappedRefreshKey = await wrapKeyWithToken(newRefreshToken, newRefreshKey, c.env)
-				const newEncryptedRefreshData = { encryptedData: newEncRefreshData, iv: newRefreshIv, wrappedKey: newWrappedRefreshKey }
+				const newWrappedRefreshHmacKey = await wrapKeyWithToken(newRefreshToken, newRefreshHmacKey, c.env)
+				const newEncryptedRefreshData = { encryptedData: newEncRefreshData, iv: newRefreshIv, wrappedKey: newWrappedRefreshKey, hmac: newRefreshHmac, hmacKey: newWrappedRefreshHmacKey }
 				await secureKvPut(c.env, `refresh_token:${await hashSecret(newRefreshToken)}`, JSON.stringify(newEncryptedRefreshData), 2592000)
 				console.log('🔵 TOKEN: Encrypted refresh token (new) stored')
 
@@ -370,7 +400,20 @@ export const authHandler = (app: Hono<{ Bindings: Env }>, strictMode: boolean) =
 				false,
 				['decrypt']
 			)
-			const authData = await decryptProps(encryptedAuthData.encryptedData, encryptedAuthData.iv, unwrappedKey)
+
+			const unwrappedHmacKey = await crypto.subtle.unwrapKey(
+				'raw',
+				base64ToArrayBuffer(encryptedAuthData.hmacKey),
+				await deriveKeyFromToken(code, c.env),
+				{ name: 'AES-KW' },
+				{ name: 'HMAC', hash: 'SHA-256' },
+				true,
+				['verify']
+			)
+
+
+
+			const authData = await decryptProps(encryptedAuthData.encryptedData, encryptedAuthData.iv, unwrappedKey, encryptedAuthData.hmac, unwrappedHmacKey)
 			console.log('✅ TOKEN: Decrypted auth data for User:', authData.userId)
 
 			// Validate PKCE
@@ -465,9 +508,10 @@ export const authHandler = (app: Hono<{ Bindings: Env }>, strictMode: boolean) =
 			}
 
 			// Encrypt access token data
-			const { encryptedData: encAccessData, iv: accessIv, key: accessKey } = await encryptProps(tokenData)
+			const { encryptedData: encAccessData, iv: accessIv, key: accessKey, hmac: accessHmac, hmacKey: accessHmacKey } = await encryptProps(tokenData)
 			const wrappedAccessKey = await wrapKeyWithToken(accessToken, accessKey, c.env)
-			const encryptedTokenData = { encryptedData: encAccessData, iv: accessIv, wrappedKey: wrappedAccessKey }
+			const wrappedAccessHmacKey = await wrapKeyWithToken(accessToken, accessHmacKey, c.env)
+			const encryptedTokenData = { encryptedData: encAccessData, iv: accessIv, wrappedKey: wrappedAccessKey, hmac: accessHmac, hmacKey: wrappedAccessHmacKey }
 			await secureKvPut(c.env, `access_token:${await hashSecret(accessToken)}`, JSON.stringify(encryptedTokenData), 36000)
 
 			// Generate refresh token
@@ -481,9 +525,10 @@ export const authHandler = (app: Hono<{ Bindings: Env }>, strictMode: boolean) =
 			}
 
 			// Encrypt refresh token data
-			const { encryptedData: encRefreshData, iv: refreshIv, key: refreshKey } = await encryptProps(refreshData)
+			const { encryptedData: encRefreshData, iv: refreshIv, key: refreshKey, hmac: refreshHmac, hmacKey: refreshHmacKey } = await encryptProps(refreshData)
 			const wrappedRefreshKey = await wrapKeyWithToken(newRefreshToken, refreshKey, c.env)
-			const encryptedRefreshData = { encryptedData: encRefreshData, iv: refreshIv, wrappedKey: wrappedRefreshKey }
+			const wrappedRefreshHmacKey = await wrapKeyWithToken(newRefreshToken, refreshHmacKey, c.env)
+			const encryptedRefreshData = { encryptedData: encRefreshData, iv: refreshIv, wrappedKey: wrappedRefreshKey, hmac: refreshHmac, hmacKey: wrappedRefreshHmacKey }
 			await secureKvPut(c.env, `refresh_token:${await hashSecret(newRefreshToken)}`, JSON.stringify(encryptedRefreshData), 2592000)
 			console.log('🛡️  TOKEN: Encrypted Access, Identity, and Refresh tokens stored in KV')
 
@@ -530,9 +575,10 @@ export const authHandler = (app: Hono<{ Bindings: Env }>, strictMode: boolean) =
 			}
 
 			// Encrypt client data	
-			const { encryptedData: encClientData, iv: clientIv, key: clientKey } = await encryptProps(clientData)
+			const { encryptedData: encClientData, iv: clientIv, key: clientKey, hmac: clientHmac, hmacKey: clientHmacKey } = await encryptProps(clientData)
 			const wrappedClientKey = await wrapKeyWithToken(clientId, clientKey, c.env)
-			const encryptedClientData = { encryptedData: encClientData, iv: clientIv, wrappedKey: wrappedClientKey }
+			const wrappedClientHmacKey = await wrapKeyWithToken(clientId, clientHmacKey, c.env)
+			const encryptedClientData = { encryptedData: encClientData, iv: clientIv, wrappedKey: wrappedClientKey, hmac: clientHmac, hmacKey: wrappedClientHmacKey }
 			await secureKvPut(c.env, `client:${clientId}`, JSON.stringify(encryptedClientData), 86400)
 			console.log('✅ REG: Stored encrypted client data in KV')
 			return c.json({ ...clientData, client_secret: clientSecret })
@@ -548,17 +594,60 @@ export const authHandler = (app: Hono<{ Bindings: Env }>, strictMode: boolean) =
 			const body = await c.req.text()
 			const params = new URLSearchParams(body)
 			const token = params.get('token')
+			const revokeAll = params.get('revoke_all') === 'true'
 
 			if (!token) {
 				return c.json({ error: 'invalid_request' }, 400)
 			}
+
 			// Hash token for lookup
 			const hashedToken = await hashSecret(token)
+
+			// Fetch token data to get userId (access or refresh)
+			let tokenDataStr = await c.env.OAUTH_KV.get(`access_token:${hashedToken}`) ||
+				await c.env.OAUTH_KV.get(`refresh_token:${hashedToken}`)
+
+			if (!tokenDataStr) {
+				return c.json({ error: 'invalid_token' }, 400)
+			}
+
+			// Decrypt token data
+			const encryptedTokenData = JSON.parse(tokenDataStr)
+			const unwrappedKey = await crypto.subtle.unwrapKey(
+				'raw',
+				base64ToArrayBuffer(encryptedTokenData.wrappedKey),
+				await deriveKeyFromToken(token, c.env),
+				{ name: 'AES-KW' },
+				{ name: 'AES-GCM' },
+				false,
+				['decrypt']
+			)
+
+			const unwrappedHmacKey = await crypto.subtle.unwrapKey(
+				'raw',
+				base64ToArrayBuffer(encryptedTokenData.hmacKey),
+				await deriveKeyFromToken(token, c.env),
+				{ name: 'AES-KW' },
+				{ name: 'HMAC', hash: 'SHA-256' },
+				true,
+				['verify']
+			)
+
+			// Decrypt token data
+			const tokenData = await decryptProps(encryptedTokenData.encryptedData, encryptedTokenData.iv, unwrappedKey, encryptedTokenData.hmac, unwrappedHmacKey)
+			const userId = tokenData.privyUser.id
+
+			// revoke specific token
 			await c.env.OAUTH_KV.delete(`access_token:${hashedToken}`)
 			await c.env.OAUTH_KV.delete(`refresh_token:${hashedToken}`)
 			await c.env.OAUTH_KV.delete(`auth_code:${hashedToken}`)
 
-			return c.json({})
+			// revoke all tokens for user
+			if (revokeAll) {
+				await c.env.OAUTH_KV.put(`revoked_user:${userId}`, Date.now().toString(), { expirationTtl: 2592000})
+			}
+
+			return c.json({ message: revokeAll ? 'All user tokens revoked' : 'Token revoked' })
 		} catch (error) {
 			console.error('🔴 REVOKE ERROR: Token revocation failed:', error)
 			return c.json({
@@ -579,24 +668,39 @@ async function hashSecret(secret: string): Promise<string> {
 }
 
 // Encrypt properties
-async function encryptProps(data: any): Promise<{ encryptedData: string; iv: string; key: CryptoKey }> {
+async function encryptProps(data: any): Promise<{ encryptedData: string; iv: string; key: CryptoKey; hmac: string; hmacKey: CryptoKey }> {
 	const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']) as CryptoKey
 	const iv = crypto.getRandomValues(new Uint8Array(12)) // Generate random IV for security
 	const jsonData = JSON.stringify(data)
 	const encoder = new TextEncoder()
 	const encodedData = encoder.encode(jsonData)
 	const encryptedBuffer = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encodedData)
+
+	// HMAC for integrity check
+	const hmacKey = await crypto.subtle.generateKey({ name: 'HMAC', hash: 'SHA-256' }, true, ['sign', 'verify'])
+	const hmac = await crypto.subtle.sign('HMAC', hmacKey, encryptedBuffer)
+	const hmacBase64 = arrayBufferToBase64(hmac)
+
 	return {
 		encryptedData: arrayBufferToBase64(encryptedBuffer),
 		iv: arrayBufferToBase64(iv),
 		key,
+		hmac: hmacBase64,
+		hmacKey
 	}
 }
 
 // Decrypt properties
-async function decryptProps(encryptedData: string, iv: string, key: CryptoKey): Promise<any> {
+async function decryptProps(encryptedData: string, iv: string, key: CryptoKey, hmac: string, hmacKey: CryptoKey): Promise<any> {
 	const encryptedBuffer = base64ToArrayBuffer(encryptedData)
 	const ivBuffer = base64ToArrayBuffer(iv)
+
+	// Verify HMAC
+	const isValid = await crypto.subtle.verify('HMAC', hmacKey, base64ToArrayBuffer(hmac), encryptedBuffer)
+	if (!isValid) {
+		throw new Error('HMAC verification failed - data tampered')
+	}
+
 	const decryptedBuffer = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: ivBuffer }, key, encryptedBuffer)
 	const decoder = new TextDecoder()
 	const jsonData = decoder.decode(decryptedBuffer)
@@ -628,9 +732,6 @@ async function wrapKeyWithToken(tokenStr: string, keyToWrap: CryptoKey, env: Env
 // Derive key from token
 async function deriveKeyFromToken(tokenStr: string, env: Env): Promise<CryptoKey> {
 	const encoder = new TextEncoder()
-	// Use a derived static key from the token string itself for key wrapping
-	// In production, use Cloudflare Secrets for sensitive data like this salt.
-	// Access the secret via the 'env' object provided by Cloudflare Workers.
 	const salt = encoder.encode(env.KDF_SALT)
 	const keyMaterial = await crypto.subtle.importKey(
 		'raw',
@@ -643,7 +744,7 @@ async function deriveKeyFromToken(tokenStr: string, env: Env): Promise<CryptoKey
 		{
 			name: 'PBKDF2',
 			salt: salt,
-			iterations: 100000,
+			iterations: 600000,
 			hash: 'SHA-256'
 		},
 		keyMaterial,
