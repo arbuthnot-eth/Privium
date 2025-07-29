@@ -212,8 +212,8 @@ async function registerTools(server: McpServer, user: any) {
 		},
 		async () => {
 			const ethWallet = await createCrossmintWallet(user, "ethereum")
-			const solanaWallet = await createCrossmintWallet(user, "solana")
-			// sui: await createCrossmintWallet(user, "sui")
+			const solWallet = await createCrossmintWallet(user, "solana")
+		 	// const suiWallet =  await createCrossmintWallet(user, "sui")
 
 
 			const wallets = {
@@ -222,10 +222,14 @@ async function registerTools(server: McpServer, user: any) {
 					balances: await getCrossmintBalances(ethWallet),
 				},
 				solana: {
-					wallet: solanaWallet,
-					balances: await getCrossmintBalances(solanaWallet),
+					wallet: solWallet,
+					balances: await getCrossmintBalances(solWallet),
 				},
-			};
+				// sui: {
+				// 	wallet: suiWallet,
+				// 	balances: await getCrossmintBalances(suiWallet),
+				// },
+			}
 			return {
 				content: [{
 					type: "text",
