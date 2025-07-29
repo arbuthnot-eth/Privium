@@ -10,14 +10,14 @@ export default function LogoutButton() {
   const handleLogout = async () => {
     try {
       // Optional: Revoke server-side token if stored
-      const token = localStorage.getItem('bearer_token')
+      const token = sessionStorage.getItem('bearer_token')
       if (token) {
         await fetch('/revoke', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: new URLSearchParams({ token }),
         });
-        localStorage.removeItem('bearer_token')
+        sessionStorage.removeItem('bearer_token')
       }
       logout();
     } catch (error) {
