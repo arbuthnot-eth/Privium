@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react'
 import LoginScreen from './components/LoginScreen'
 import BearerTokenGenerator from './components/BearerTokenGenerator'
 import AuthorizeHandler from './components/AuthorizeHandler'
-import { useSuiWalletCreation } from './utils/walletUtils'
 
 /**
  * Main application component that handles authentication routing
@@ -12,7 +11,6 @@ import { useSuiWalletCreation } from './utils/walletUtils'
 export default function App() {
   // Get authentication state from Privy
   const { ready, authenticated, user } = usePrivy();
-  const { createSuiWalletIfNeeded } = useSuiWalletCreation();
   
   // State for OAuth authorization mode
   const [isAuthorizeMode, setIsAuthorizeMode] = useState(false);
