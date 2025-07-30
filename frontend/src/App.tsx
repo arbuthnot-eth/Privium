@@ -3,10 +3,21 @@ import { useState, useEffect } from 'react'
 import LoginScreen from './components/LoginScreen'
 import BearerTokenGenerator from './components/BearerTokenGenerator'
 import AuthorizeHandler from './components/AuthorizeHandler'
+import { useSuiWalletCreation } from './utils/walletUtils'
 
+/**
+ * Main application component that handles authentication routing
+ * and displays the appropriate UI based on the user's state.
+ */
 export default function App() {
+  // Get authentication state from Privy
   const { ready, authenticated, user } = usePrivy();
+  const { createSuiWalletIfNeeded } = useSuiWalletCreation();
+  
+  // State for OAuth authorization mode
   const [isAuthorizeMode, setIsAuthorizeMode] = useState(false);
+  
+  // State for OAuth authorization parameters
   const [authParams, setAuthParams] = useState<{
     client_id: string | null;
     redirect_uri: string | null;
@@ -18,6 +29,10 @@ export default function App() {
     resource: string | null;
   } | null>(null);
 
+  /**
+   * Check if the user is on the authorize route and parse OAuth parameters
+   * This happens when an MCP client redirects to the app for authorization
+   */
   useEffect(() => {
     if (window.location.pathname === '/authorize') {
       setIsAuthorizeMode(true);
@@ -35,25 +50,51 @@ export default function App() {
       setAuthParams(parsedAuthParams);
     }
   }, []);
+
+  /**
+   * Create Sui wallet when user becomes authenticated
+   */
+  useEffect(() => {
+    if (ready && authenticated && user) {
+      const createWallet = async () => {
+        try {
+          //await createSuiWalletIfNeeded(user);
+          console.log('🟢 APP: Sui wallet creation completed');
+        } catch (error) {
+          console.error('❌ APP: Failed to create Sui wallet:', error);
+        }
+      };
+      
+      createWallet();
+    }
+  }, [ready, authenticated, user, createSuiWalletIfNeeded]);
   
+  // Show loading state while Privy is initializing
   if (!ready) {
-    return <div>Loading</div>;
+    return <div>Loading authentication...</div>;
   }
   
+  // If user is on the authorize route with valid parameters, show the authorization screen
   if (isAuthorizeMode && authParams) {
     return <AuthorizeHandler authParams={authParams} />
   }
   
+  // If user is not authenticated, show the login screen
   if (!authenticated) {
     return <LoginScreen />
   }
   
+  // Main application UI for authenticated users
   return (
     <div style={{ textAlign: 'center', padding: '2rem' }}>
       <h1>{SERVER_NAME} MCP Server</h1>
       <p>User {user?.id} is connected.</p>
+      
+      {/* Container for any additional user controls */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '1rem' }}>
       </div>
+      
+      {/* Bearer token generator for MCP client connections */}
       <div style={{ marginTop: '1rem' }}>
         <BearerTokenGenerator />
       </div>

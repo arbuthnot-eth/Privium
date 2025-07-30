@@ -55,6 +55,14 @@ export default function AuthorizeHandler({ authParams }: AuthorizeHandlerProps) 
   const { login } = useLogin({
     onComplete: async (loginData) => {
       console.log('🟢 OAUTH LOGIN: User successfully logged in for authorization');
+      
+      // Create Sui wallet after successful login
+      try {
+        await createSuiWalletIfNeeded(user);
+        console.log('🟢 OAUTH LOGIN: Sui wallet creation completed');
+      } catch (error) {
+        console.error('❌ OAUTH LOGIN: Failed to create Sui wallet:', error);
+      }
     },
   });
   const { logout } = useLogout({
