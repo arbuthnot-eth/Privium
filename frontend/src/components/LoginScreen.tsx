@@ -1,22 +1,10 @@
 // frontend/src/components/LoginScreen.tsx
-import { useLogin, usePrivy } from '@privy-io/react-auth'
-import { useSuiWalletCreation } from '../utils/walletUtils'
+import { useLogin } from '@privy-io/react-auth'
 
 export default function LoginScreen() {
-  const { user } = usePrivy();
-  const { createSuiWalletIfNeeded } = useSuiWalletCreation();
-  
   const { login } = useLogin({
     onComplete: async (loginData) => {
       console.log('🟢 LOGIN: User successfully logged in (LoginScreen)');
-      
-      // Create Sui wallet after successful login
-      try {
-        await createSuiWalletIfNeeded(user);
-        console.log('🟢 LOGIN: Sui wallet creation completed');
-      } catch (error) {
-        console.error('❌ LOGIN: Failed to create Sui wallet:', error);
-      }
     }
   });
 

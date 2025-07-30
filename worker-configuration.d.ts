@@ -12,9 +12,17 @@ declare namespace Cloudflare {
 		MCP_OBJECT: DurableObjectNamespace<import("./src/index").SuperAgent>
 		AI: Ai
 		ASSETS: Fetcher
-		privyUser?: { id: string; email?: { address: string }; linkedAccounts: any[]; /* etc. */ }
+		privyUser: PrivyUser
 	}
 }
+
+interface PrivyUser {
+	id: string;
+	email?: { address: string };
+	linkedAccounts: any[];
+	// Add other properties as needed based on actual usage
+}
+
 interface Env extends Cloudflare.Env {}
 type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;

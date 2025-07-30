@@ -1,36 +1,18 @@
 // frontend/src/components/BearerTokenGenerator.tsx
 import { usePrivy, getAccessToken, useIdentityToken } from '@privy-io/react-auth'
 import { useState } from 'react'
-import { useSuiWalletCreation } from '../utils/walletUtils'
 import CopyToClipboardButton from './CopyButton'
 import LogoutButton from './LogoutButton'
 
-interface RegisterClientResponse {
-    client_id: string;
-    client_secret: string;
-}
-
-interface ExchangeTokenResponse {
-    access_token: string;
-    token_type: string;
-    expires_in: number;
-    refresh_token?: string;
-    scope?: string;
-}
-
-interface CompleteAuthResponse {
-    redirectTo: string;
-}
 
 export default function BearerTokenGenerator() {
-    const { authenticated, user } = usePrivy();
-    const { identityToken } = useIdentityToken();
-    const { createSuiWalletIfNeeded } = useSuiWalletCreation();
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [bearerTokenInfo, setBearerTokenInfo] = useState<any>(null);
-    const [error, setError] = useState<string | null>(null);
-    const [clientId, setClientId] = useState<string | null>(null);
-    const [clientSecret, setClientSecret] = useState<string | null>(null);
+    const { authenticated } = usePrivy()
+    const { identityToken } = useIdentityToken()
+    const [isGenerating, setIsGenerating] = useState(false)
+    const [bearerTokenInfo, setBearerTokenInfo] = useState<any>(null)
+    const [error, setError] = useState<string | null>(null)
+    const [clientId, setClientId] = useState<string | null>(null)
+    const [clientSecret, setClientSecret] = useState<string | null>(null)
 
     // Generate PKCE parameters
     const generatePKCE = () => {
@@ -220,12 +202,6 @@ export default function BearerTokenGenerator() {
 
             setBearerTokenInfo(tokenInfo);
             console.log('Bearer token generation completed successfully');
-            // Create Sui wallet if needed during bearer token generation
-            try {
-                await createSuiWalletIfNeeded(user);
-            } catch (error) {
-                console.error('❌ OAUTH: Failed to create Sui wallet during bearer token generation:', error);
-            }
 
         } catch (err) {
             console.error('Error generating bearer token:', err);

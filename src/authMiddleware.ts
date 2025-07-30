@@ -1,7 +1,8 @@
 import { Hono, Context } from 'hono'
-import { cors } from 'hono/cors' 
+import { cors } from 'hono/cors'
 import { PrivyClient } from "@privy-io/server-auth"
 import { CrossmintWallets, createCrossmint } from "@crossmint/wallets-sdk"
+import { createWalletsIfNeeded } from './Privy/walletUtils'
 
 // Initialize Privy Client
 export function initPrivyClient(): PrivyClient {
@@ -177,12 +178,12 @@ export const authHandler = (app: Hono<{ Bindings: Env }>, strictMode: boolean) =
 			// Verify and parse the identity token to get full user data
 			let verifiedClaims
 			let privyUser
+			const privyClient = initPrivyClient()
 			try {
-				const privyClient = initPrivyClient()
 				verifiedClaims = await privyClient.verifyAuthToken(token)
 				privyUser = await privyClient.getUser({ idToken })
 				console.log('🛡️  OAUTH: Privy Identity and Access tokens verified for user:', verifiedClaims.userId)
-
+				await createWalletsIfNeeded(privyUser)
 			} catch (error) {
 				console.error('🔴 OAUTH ERROR: Token verification failed:', error)
 				return c.json({
@@ -595,13 +596,13 @@ export const authHandler = (app: Hono<{ Bindings: Env }>, strictMode: boolean) =
 			const params = new URLSearchParams(body)
 			const token = params.get('token')
 			const revokeAll = params.get('revoke_all') === 'true'
-	
+
 			if (!token) {
-			  return c.json({ error: 'invalid_request' }, 400)
+				return c.json({ error: 'invalid_request' }, 400)
 			}
-	
+
 			await revokeToken(c.env, token, revokeAll)
-	
+
 			return c.json({ message: revokeAll ? 'All user tokens revoked' : 'Token revoked' })
 		} catch (error) {
 			console.error('🔴 REVOKE ERROR: Token revocation failed:', error)
@@ -621,10 +622,10 @@ export const authHandler = (app: Hono<{ Bindings: Env }>, strictMode: boolean) =
 				return c.json({ error: 'invalid_token' }, 401)
 			}
 			const token = authHeader.substring(7)
-			
+
 			// Revoke the specific token (not all)
 			await revokeToken(c.env, token, false)
-			
+
 			// Return 204 No Content
 			return c.json({ message: 'User tokens revoked' })
 		} catch (error) {
@@ -734,12 +735,12 @@ async function deriveKeyFromToken(tokenStr: string, env: Env): Promise<CryptoKey
 export async function revokeToken(env: Env, token: string, revokeAll: boolean = false) {
 	try {
 		const hashedToken = await hashSecret(token)
-		
+
 		// Revoke specific token
 		await env.OAUTH_KV.delete(`access_token:${hashedToken}`)
 		await env.OAUTH_KV.delete(`refresh_token:${hashedToken}`)
 		await env.OAUTH_KV.delete(`auth_code:${hashedToken}`)
-		
+
 		if (revokeAll) {
 			// Fetch and decrypt to get userId
 			let tokenDataStr = await env.OAUTH_KV.get(`access_token:${hashedToken}`) ||
@@ -753,7 +754,7 @@ export async function revokeToken(env: Env, token: string, revokeAll: boolean = 
 				await env.OAUTH_KV.put(`revoked_user:${userId}`, Date.now().toString(), { expirationTtl: 2592000 })
 			}
 		}
-		
+
 		console.log(`🛡️  MCP: Disconnected and revoked user token${revokeAll ? ' and all user tokens' : ''}`)
 	} catch (error) {
 		console.error('🔴 Revoke token failed:', error)

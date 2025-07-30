@@ -1,7 +1,6 @@
 // frontend/src/components/AuthorizeHandler.tsx
 import { usePrivy, useLogin, useLogout, getAccessToken, useIdentityToken } from '@privy-io/react-auth';
-import { useState, useEffect } from 'react';
-import { useSuiWalletCreation } from '../utils/walletUtils';
+import { useState, useEffect } from 'react'
 
 interface AuthorizeHandlerProps {
   authParams: {
@@ -49,20 +48,11 @@ const authDialogStyle = `
 export default function AuthorizeHandler({ authParams }: AuthorizeHandlerProps) {
   const { ready, authenticated, user } = usePrivy();
   const { identityToken } = useIdentityToken();
-  const { createSuiWalletIfNeeded } = useSuiWalletCreation();
 
   // Login handler
   const { login } = useLogin({
     onComplete: async (loginData) => {
       console.log('🟢 OAUTH LOGIN: User successfully logged in for authorization');
-      
-      // Create Sui wallet after successful login
-      try {
-        await createSuiWalletIfNeeded(user);
-        console.log('🟢 OAUTH LOGIN: Sui wallet creation completed');
-      } catch (error) {
-        console.error('❌ OAUTH LOGIN: Failed to create Sui wallet:', error);
-      }
     },
   });
   const { logout } = useLogout({
@@ -91,12 +81,6 @@ export default function AuthorizeHandler({ authParams }: AuthorizeHandlerProps) 
     if (!accessToken || !authParams.redirect_uri || processing) return;
     setProcessing(true);
 
-    // Create Sui wallet if needed when user grants authorization
-    try {
-      await createSuiWalletIfNeeded(user);
-    } catch (error) {
-      console.error('❌ OAUTH: Failed to create Sui wallet during authorization:', error);
-    }
 
     // Complete authorization
     const backendUrl = '/complete-authorize';

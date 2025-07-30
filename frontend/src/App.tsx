@@ -51,24 +51,6 @@ export default function App() {
     }
   }, []);
 
-  /**
-   * Create Sui wallet when user becomes authenticated
-   */
-  useEffect(() => {
-    if (ready && authenticated && user) {
-      const createWallet = async () => {
-        try {
-          //await createSuiWalletIfNeeded(user);
-          console.log('🟢 APP: Sui wallet creation completed');
-        } catch (error) {
-          console.error('❌ APP: Failed to create Sui wallet:', error);
-        }
-      };
-      
-      createWallet();
-    }
-  }, [ready, authenticated, user, createSuiWalletIfNeeded]);
-  
   // Show loading state while Privy is initializing
   if (!ready) {
     return <div>Loading authentication...</div>;
