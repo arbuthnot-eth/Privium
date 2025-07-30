@@ -2,7 +2,8 @@ import { z } from "zod"
 import { McpAgent } from "agents/mcp"
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { SERVER_NAME, SERVER_VERSION } from "./config"
-import { createCrossmintWallet, getPrivyWallets, getCrossmintBalances } from "./walletLocator"
+import { getPrivyWallets } from "./walletLocator"
+import { registerCrossmintTools } from "./Crossmint/crossmint_tools"
 
 // Define our MCP agent with version and register tools
 export class SuperAgent extends McpAgent<Env, DurableObjectState, {}> {
@@ -21,75 +22,37 @@ export class SuperAgent extends McpAgent<Env, DurableObjectState, {}> {
 // Register Tools
 async function registerTools(server: McpServer, user: any) {
 
-	// Simple addition tool
-	server.registerTool(
-		"add",
-		{
-			title: "Addition Tool",
-			description: "A simple tool to add two numbers",
-			inputSchema: {
-				a: z.number().describe("First number"),
-				b: z.number().describe("Second number")
-			},
-		},
-		async ({ a, b }: { a: number, b: number }) => ({
-			content: [{ type: "text", text: String(a + b) }],
-		})
-	)
 
-	// Greeting Tool
+	// Get User Wallets Tool
 	server.registerTool(
-		'greet',
+		"Embedded Wallets",
 		{
-			title: 'Greeting Tool',
-			description: 'A simple greeting tool',
-			inputSchema: {
-				name: z.string().describe('Name to greet'),
-			},
+			title: "Get App Wallets",
+			description: "Get all embedded wallets connected to the current user",
+			inputSchema: {}
 		},
-		async ({ name }: { name: string }) => {
-			return { content: [{ type: "text", text: `Hello, ${name}!` }] }
-		}
-	)
+		async () => {
+			try {
+				const wallets = await getPrivyWallets(user)
 
-	// Calculator tool with multiple operations
-	server.registerTool(
-		"calculate",
-		{
-			title: "Calculator Tool",
-			description: "A tool to perform basic arithmetic operations",
-			inputSchema: {
-				operation: z.enum(["add", "subtract", "multiply", "divide"]).describe("Operation to perform"),
-				a: z.number().describe("First number"),
-				b: z.number().describe("Second number"),
-			},
-		},
-		async ({ operation, a, b }: { operation: string, a: number, b: number }) => {
-			let result: number | undefined
-			switch (operation) {
-				case "add":
-					result = a + b
-					break
-				case "subtract":
-					result = a - b
-					break
-				case "multiply":
-					result = a * b
-					break
-				case "divide":
-					if (b === 0)
-						return {
-							content: [
-								{
-									type: "text",
-									text: "Error: Cannot divide by zero",
-								},
-							],
-						}
-					result = a / b
-					break
+				const walletsInfo = wallets.map((wallet: any, index: number) => {
+					return `${index + 1}. ${wallet.address}\n   📋 Type: ${wallet.walletClientType || 'Unknown'}\n   🌐 Chain: ${wallet.chainType || 'EVM'}`
+				}).join('\n\n')
+
+				return {
+					content: [{
+						type: "text",
+						text: `💼 Embedded Wallets (${wallets.length}):\n\n${walletsInfo}`
+					}]
+				}
+			} catch (error) {
+				return {
+					content: [{
+						type: "text",
+						text: `❌ Error: ${error instanceof Error ? error.message : String(error)}`
+					}]
+				}
 			}
-			return { content: [{ type: "text", text: String(result) }] }
 		}
 	)
 
@@ -129,116 +92,8 @@ async function registerTools(server: McpServer, user: any) {
 		}
 	)
 
-	// List Resources Tool
-	server.registerTool(
-		"list_resources",
-		{
-			title: "List Resources",
-			description: "Shows available resources and how to access them",
-			inputSchema: {}
-		},
-		async () => {
-			const resourceList = [
-				{
-					name: "user://me",
-					description: "Complete user profile with all Privy data",
-					example: "Just type: user://me"
-				},
-				{
-					name: "user://[anything]/profile",
-					description: "Structured user profile (clean format)",
-					example: "Try: user://current/profile"
-				},
-				{
-					name: "wallets://me",
-					description: "User's connected wallets",
-					example: "Just type: wallets://me"
-				}
-			]
-
-			const help = `🔗 **Available Resources**\n\n${resourceList.map(r =>
-				`**${r.name}**\n${r.description}\n💡 ${r.example}\n`
-			).join('\n')}\n📝 **How to use:** Go to Resources tab → Type URI → Click "Fetch Resource"`
-
-			return {
-				content: [{
-					type: "text",
-					text: help
-				}]
-			}
-		}
-	)
-
-	// Get User Wallets Tool
-	server.registerTool(
-		"Get Privy Wallets",
-		{
-			title: "Get App Wallets",
-			description: "Get all embedded wallets connected to the current user",
-			inputSchema: {}
-		},
-		async () => {
-			try {
-				const wallets = await getPrivyWallets(user)
-
-				const walletsInfo = wallets.map((wallet: any, index: number) => {
-					return `${index + 1}. ${wallet.address}\n   📋 Type: ${wallet.walletClientType || 'Unknown'}\n   🌐 Chain: ${wallet.chainType || 'EVM'}`
-				}).join('\n\n')
-
-				return {
-					content: [{
-						type: "text",
-						text: `💼 Embedded Wallets (${wallets.length}):\n\n${walletsInfo}`
-					}]
-				}
-			} catch (error) {
-				return {
-					content: [{
-						type: "text",
-						text: `❌ Error: ${error instanceof Error ? error.message : String(error)}`
-					}]
-				}
-			}
-		}
-	)
-
-	// Create Crossmint Wallet Tool
-	server.registerTool(
-		"getSmartWallets",
-		{
-			title: "Create Crossmint Wallet",
-			description: "Create a new Crossmint wallet for the current user",
-			inputSchema: {}
-		},
-		async () => {
-			const ethWallet = await createCrossmintWallet(user, "ethereum")
-			const solWallet = await createCrossmintWallet(user, "solana")
-		 	// const suiWallet =  await createCrossmintWallet(user, "sui")
-
-
-			const wallets = {
-				ethereum: {
-					wallet: ethWallet,
-					balances: await getCrossmintBalances(ethWallet),
-				},
-				solana: {
-					wallet: solWallet,
-					balances: await getCrossmintBalances(solWallet),
-				},
-				// sui: {
-				// 	wallet: suiWallet,
-				// 	balances: await getCrossmintBalances(suiWallet),
-				// },
-			}
-			return {
-				content: [{
-					type: "text",
-					mimeType: "application/json",
-					text: JSON.stringify(wallets)
-				}]
-			}
-		}
-	)
+	// Register Crossmint tools
+	await registerCrossmintTools(server, user)
 
 
 	// Get Authentication Status Tool
@@ -346,6 +201,119 @@ async function registerTools(server: McpServer, user: any) {
 					}]
 				}
 			}
+		}
+	)
+
+
+	// List Resources Tool
+	server.registerTool(
+		"list_resources",
+		{
+			title: "List Resources",
+			description: "Shows available resources and how to access them",
+			inputSchema: {}
+		},
+		async () => {
+			const resourceList = [
+				{
+					name: "user://me",
+					description: "Complete user profile with all Privy data",
+					example: "Just type: user://me"
+				},
+				{
+					name: "user://[anything]/profile",
+					description: "Structured user profile (clean format)",
+					example: "Try: user://current/profile"
+				},
+				{
+					name: "wallets://me",
+					description: "User's connected wallets",
+					example: "Just type: wallets://me"
+				}
+			]
+
+			const help = `🔗 **Available Resources**\n\n${resourceList.map(r =>
+				`**${r.name}**\n${r.description}\n💡 ${r.example}\n`
+			).join('\n')}\n📝 **How to use:** Go to Resources tab → Type URI → Click "Fetch Resource"`
+
+			return {
+				content: [{
+					type: "text",
+					text: help
+				}]
+			}
+		}
+	)
+
+	// Simple addition tool
+	server.registerTool(
+		"add",
+		{
+			title: "Addition Tool",
+			description: "A simple tool to add two numbers",
+			inputSchema: {
+				a: z.number().describe("First number"),
+				b: z.number().describe("Second number")
+			},
+		},
+		async ({ a, b }: { a: number, b: number }) => ({
+			content: [{ type: "text", text: String(a + b) }],
+		})
+	)
+
+	// Greeting Tool
+	server.registerTool(
+		'greet',
+		{
+			title: 'Greeting Tool',
+			description: 'A simple greeting tool',
+			inputSchema: {
+				name: z.string().describe('Name to greet'),
+			},
+		},
+		async ({ name }: { name: string }) => {
+			return { content: [{ type: "text", text: `Hello, ${name}!` }] }
+		}
+	)
+
+	// Calculator tool with multiple operations
+	server.registerTool(
+		"calculate",
+		{
+			title: "Calculator Tool",
+			description: "A tool to perform basic arithmetic operations",
+			inputSchema: {
+				operation: z.enum(["add", "subtract", "multiply", "divide"]).describe("Operation to perform"),
+				a: z.number().describe("First number"),
+				b: z.number().describe("Second number"),
+			},
+		},
+		async ({ operation, a, b }: { operation: string, a: number, b: number }) => {
+			let result: number | undefined
+			switch (operation) {
+				case "add":
+					result = a + b
+					break
+				case "subtract":
+					result = a - b
+					break
+				case "multiply":
+					result = a * b
+					break
+				case "divide":
+					if (b === 0)
+						return {
+							content: [
+								{
+									type: "text",
+									text: "Error: Cannot divide by zero",
+								},
+							],
+						}
+					result = a / b
+					break
+			}
+			return { content: [{ type: "text", text: String(result) }] }
 		}
 	)
 }
