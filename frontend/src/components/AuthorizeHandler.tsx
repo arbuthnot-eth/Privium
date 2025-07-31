@@ -1,5 +1,6 @@
 // frontend/src/components/AuthorizeHandler.tsx
-import { usePrivy, useLogin, useLogout, getAccessToken, useIdentityToken } from '@privy-io/react-auth';
+import { usePrivy, useLogin, useLogout, getAccessToken, useIdentityToken, useSessionSigners, useWallets } from '@privy-io/react-auth';
+import { useSolanaWallets } from '@privy-io/react-auth/solana'
 import { useState, useEffect } from 'react'
 
 interface AuthorizeHandlerProps {
@@ -46,8 +47,11 @@ const authDialogStyle = `
 `;
 
 export default function AuthorizeHandler({ authParams }: AuthorizeHandlerProps) {
-  const { ready, authenticated, user } = usePrivy();
-  const { identityToken } = useIdentityToken();
+  const { ready, authenticated, user } = usePrivy()
+  const { identityToken } = useIdentityToken()
+  const { addSessionSigners, removeSessionSigners} = useSessionSigners()
+  const { wallets } = useWallets()
+  const { wallets: solanaWallets } = useSolanaWallets()
 
   // Login handler
   const { login } = useLogin({
@@ -81,6 +85,24 @@ export default function AuthorizeHandler({ authParams }: AuthorizeHandlerProps) 
     if (!accessToken || !authParams.redirect_uri || processing) return;
     setProcessing(true);
 
+    // Add session signers then remove to generate walletIds
+    const allEmbeddedWallets = [
+      ...wallets.filter((w) => w.walletClientType === 'privy'),
+      ...solanaWallets.filter((w) => w.walletClientType === 'privy') as any
+    ]
+    if (!!allEmbeddedWallets) {
+      for (const wallet of allEmbeddedWallets) {
+        if ('getEthereumProvider' in wallet) {
+          await wallet.getEthereumProvider()
+        } else if ('getSolanaProvider' in wallet) {
+          await wallet.getSolanaProvider()
+        }
+        await addSessionSigners({
+          address: wallet.address,
+          signers: []
+        })
+      }
+    }
 
     // Complete authorization
     const backendUrl = '/complete-authorize';

@@ -29,5 +29,5 @@ export async function getCrossmintBalances(wallet: Wallet<Chain>) {
 }
 
 export async function getPrivyWallets(privyUser: PrivyUser): Promise<any | any[]> {
-    return privyUser?.linkedAccounts?.filter((acc: any) => acc.type === 'wallet' && acc.walletClientType === 'privy')
+    return privyUser.linkedAccounts.filter((acc) => acc.type === 'wallet' && acc.walletClientType === 'privy')
 }
