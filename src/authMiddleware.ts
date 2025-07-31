@@ -21,6 +21,22 @@ export function initCrossmint(): CrossmintWallets {
 	return CrossmintWallets.from(crossmint)
 }
 
+// Helper function to get fresh user data with latest wallets
+export async function refreshUser(cachedUser: PrivyUser) {
+	try {
+		// Initialize Privy client
+		const privyClient = initPrivyClient()
+		// Get fresh user data from Privy using userId string
+		const freshUser = await privyClient.getUserById(cachedUser.id)
+		// Refresh the user data
+		return freshUser
+	} catch (error) {
+		console.error('❌ Error fetching fresh user data:', error)
+		// Fallback to cached user data if fresh fetch fails
+		return cachedUser
+	}
+}
+
 // Secure KV Put with expiration TTL
 async function secureKvPut(env: Env, key: string, value: string, ttl: number) {
 	await env.OAUTH_KV.put(key, value, { expirationTtl: ttl });

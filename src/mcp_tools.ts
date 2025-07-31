@@ -4,6 +4,7 @@ import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mc
 import { SERVER_NAME, SERVER_VERSION } from "./config"
 import { getPrivyWallets } from "./walletLocator"
 import { registerCrossmintTools } from "./Crossmint/crossmint_tools"
+import { refreshUser } from "./authMiddleware"
 
 // Define our MCP agent with version and register tools
 export class SuperAgent extends McpAgent<Env, DurableObjectState, {}> {
@@ -12,16 +13,15 @@ export class SuperAgent extends McpAgent<Env, DurableObjectState, {}> {
 	// Initialize the MCP agent
 	async init() {
 		// Register tools and resources from external file (mcp_tools.ts)
-		registerTools(this.server, this.env.privyUser)
-		registerResources(this.server, this.env.privyUser)
+		registerTools(this.server, await refreshUser(this.env.privyUser))
+		registerResources(this.server, await refreshUser(this.env.privyUser))
 		console.log('⛅', SERVER_NAME, 'Agent initialized, Version:', SERVER_VERSION)
 		console.log('.      for: ' + this.env.privyUser?.id)
 	}
 }
 
 // Register Tools
-async function registerTools(server: McpServer, user: any) {
-
+async function registerTools(server: McpServer, user: PrivyUser) {
 
 	// Get User Wallets Tool
 	server.registerTool(
@@ -35,14 +35,10 @@ async function registerTools(server: McpServer, user: any) {
 			try {
 				const wallets = await getPrivyWallets(user)
 
-				const walletsInfo = wallets.map((wallet: any, index: number) => {
-					return `${index + 1}. ${wallet.address}\n   📋 Type: ${wallet.walletClientType || 'Unknown'}\n   🌐 Chain: ${wallet.chainType || 'EVM'}`
-				}).join('\n\n')
-
 				return {
 					content: [{
 						type: "text",
-						text: `💼 Embedded Wallets (${wallets.length}):\n\n${walletsInfo}`
+						text: JSON.stringify(wallets)
 					}]
 				}
 			} catch (error) {
@@ -75,10 +71,13 @@ async function registerTools(server: McpServer, user: any) {
 					}
 				}
 
+
+				const walletCount = user.linkedAccounts?.filter((acc: any) => acc.type === 'wallet').length || 0
+
 				return {
 					content: [{
 						type: "text",
-						text: `✅ **User Profile**\n\n📧 **Email:** ${user.email?.address || 'Not set'}\n🆔 **ID:** ${user.id}\n📅 **Created:** ${new Date(user.createdAt).toLocaleDateString()}\n👤 **Type:** ${user.isGuest ? 'Guest' : 'Full User'}\n💼 **Wallets:** ${user.linkedAccounts?.filter((acc: any) => acc.type === 'wallet').length || 0}\n\n**Available Resources:**\n- \`user://me\` - Full user data\n- \`user://profile\` - Structured profile`
+						text: `✅ **User Profile**\n\n📧 **Email:** ${user.email?.address || 'Not set'}\n🆔 **ID:** ${user.id}\n💼 **Wallets:** ${walletCount}\n\n**Available Resources:**\n- \`user://me\` - Full user data\n- \`user://profile\` - Structured profile`
 					}]
 				}
 			} catch (error) {
@@ -94,7 +93,6 @@ async function registerTools(server: McpServer, user: any) {
 
 	// Register Crossmint tools
 	await registerCrossmintTools(server, user)
-
 
 	// Get Authentication Status Tool
 	server.registerTool(
@@ -115,14 +113,10 @@ async function registerTools(server: McpServer, user: any) {
 					}
 				}
 
-				const now = Date.now()
-				const createdAt = new Date(user.createdAt).getTime()
-				const sessionAge = Math.floor((now - createdAt) / (1000 * 60 * 60 * 24)) // Days
-
 				return {
 					content: [{
 						type: "text",
-						text: `🔐 **Authentication Status**\n\n✅ **Authenticated**: Yes\n🆔 **User ID**: ${user.id}\n📧 **Email**: ${user.email?.address || 'Not set'}\n📅 **Account Created**: ${new Date(user.createdAt).toLocaleDateString()}\n⏱️ **Session Age**: ${sessionAge} days\n📱 **Linked Accounts**: ${user.linkedAccounts?.length || 0}\n\nUse \`user://me\` resource for full profile details.`
+						text: `🔐 **Authentication Status**\n\n✅ **Authenticated**: Yes\n🆔 **User ID**: ${user.id}\n📧 **Email**: ${user.email?.address || 'Not set'}\n📱 **Linked Accounts**: ${user.linkedAccounts?.length || 0}\n\nUse \`user://me\` resource for full profile details.`
 					}]
 				}
 			} catch (error) {
@@ -203,7 +197,6 @@ async function registerTools(server: McpServer, user: any) {
 			}
 		}
 	)
-
 
 	// List Resources Tool
 	server.registerTool(
@@ -319,7 +312,7 @@ async function registerTools(server: McpServer, user: any) {
 }
 
 // Register Resources
-async function registerResources(server: McpServer, user: any) {
+async function registerResources(server: McpServer, user: PrivyUser) {
 
 	// Add a dynamic greeting resource
 	server.registerResource(
@@ -354,6 +347,7 @@ async function registerResources(server: McpServer, user: any) {
 				if (!user) {
 					throw new Error("User context not available")
 				}
+
 				return {
 					contents: [{
 						uri: uri.href,
@@ -373,7 +367,7 @@ async function registerResources(server: McpServer, user: any) {
 		}
 	)
 
-	// Add user resource  
+	// Add user resource
 	server.registerResource(
 		"whoami",
 		new ResourceTemplate("user://me", { list: undefined }),
@@ -386,7 +380,7 @@ async function registerResources(server: McpServer, user: any) {
 				if (!user) {
 					throw new Error("User context not available")
 				}
-				// Use the already-stored Privy user data
+
 				return {
 					contents: [{
 						uri: "user://" + user.id,

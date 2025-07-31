@@ -1,7 +1,7 @@
 import { initCrossmint } from "./authMiddleware"
 import { Wallet, type Chain } from "@crossmint/wallets-sdk"
 
-export async function createCrossmintWallet(privyUser: Env["privyUser"], chain: string) {
+export async function createCrossmintWallet(privyUser: PrivyUser, chain: string) {
     try {
         const crossmintWallets = initCrossmint()
 
