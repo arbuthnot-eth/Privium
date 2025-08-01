@@ -14,7 +14,7 @@ interface AuthorizeHandlerProps {
     code_challenge: string | null;
     code_challenge_method: string | null;
     resource: string | null;
-  };
+  }
 }
 
 interface CompleteAuthResponse {
@@ -45,7 +45,7 @@ const authDialogStyle = `
       --button-primary-hover: rgb(23, 77, 37);
     }
   }
-`;
+`
 
 export default function AuthorizeHandler({ authParams }: AuthorizeHandlerProps) {
   const { ready, authenticated, user } = usePrivy()
@@ -77,8 +77,8 @@ export default function AuthorizeHandler({ authParams }: AuthorizeHandlerProps) 
   const handleApprove = async () => {
     console.log('🟢 OAUTH: User clicked Grant Authorization');
     console.log('🔵 OAUTH: Starting handleApprove with accessToken:', !!accessToken, 'redirect_uri:', authParams.redirect_uri);
-    if (!accessToken || !authParams.redirect_uri || processing) return;
-    setProcessing(true);
+    if (!accessToken || !authParams.redirect_uri || processing) return
+    setProcessing(true)
 
     // Add session signers then remove to generate walletIds
     const allEmbeddedWallets = [
@@ -100,8 +100,7 @@ export default function AuthorizeHandler({ authParams }: AuthorizeHandlerProps) 
     }
 
     // Complete authorization
-    const backendUrl = '/complete-authorize';
-    console.log('🔵 OAUTH: Calling complete-authorize endpoint');
+    const backendUrl = '/complete-authorize'
 
     try {
       const response = await fetch(backendUrl, {
