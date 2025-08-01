@@ -9,13 +9,9 @@ import AuthorizeHandler from './components/AuthorizeHandler'
  * and displays the appropriate UI based on the user's state.
  */
 export default function App() {
-  // Get authentication state from Privy
-  const { ready, authenticated, user } = usePrivy();
-  
-  // State for OAuth authorization mode
+  const { ready, authenticated, user } = usePrivy()
+
   const [isAuthorizeMode, setIsAuthorizeMode] = useState(false);
-  
-  // State for OAuth authorization parameters
   const [authParams, setAuthParams] = useState<{
     client_id: string | null;
     redirect_uri: string | null;
@@ -27,14 +23,23 @@ export default function App() {
     resource: string | null;
   } | null>(null);
 
-  /**
-   * Check if the user is on the authorize route and parse OAuth parameters
-   * This happens when an MCP client redirects to the app for authorization
-   */
+  const [hasAuthorized, setHasAuthorized] = useState(false);
+
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const authorizedParam = params.get('authorized');
+
+    // Detect successful authorization redirect and set flag
+    if (authorizedParam === 'true' && !hasAuthorized) {
+      setHasAuthorized(true);
+      // Clean up URL by removing query param (prevents re-trigger on refresh)
+      const cleanUrl = window.location.origin + window.location.pathname;
+      window.history.replaceState({}, '', cleanUrl);
+      return;
+    }
+
     if (window.location.pathname === '/authorize') {
       setIsAuthorizeMode(true);
-      const params = new URLSearchParams(window.location.search);
       const parsedAuthParams = {
         client_id: params.get('client_id'),
         redirect_uri: params.get('redirect_uri'),
@@ -46,35 +51,100 @@ export default function App() {
         resource: params.get('resource') || window.location.origin + '/mcp',
       };
       setAuthParams(parsedAuthParams);
+      return;
     }
-  }, []);
 
-  // Show loading state while Privy is initializing
+    const authorized = sessionStorage.getItem('hasAuthorized');
+    if (authorized) {
+      setHasAuthorized(true);
+    }
+  }, []); // Empty dependency array to run only on mount
+
+  // MOVED UP: This useEffect must be before any early returns to ensure consistent hook calls
+  useEffect(() => {
+    if (hasAuthorized) {
+      sessionStorage.setItem('hasAuthorized', 'true');
+    }
+  }, [hasAuthorized])
+
+  useEffect(() => {
+    if (authenticated && !hasAuthorized && !isAuthorizeMode) {
+      const generateInternalParams = async () => {
+        try {
+          const regResponse = await fetch('/reg', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ redirect_uris: [window.location.origin] }),
+          });
+          const data = await regResponse.json() as RegisterClientResponse;
+          const client_id = data.client_id;
+          
+          // Optional: Generate PKCE (for full compliance)
+          const codeVerifier = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('');
+          const encoder = new TextEncoder();
+          const hashed = await crypto.subtle.digest('SHA-256', encoder.encode(codeVerifier));
+          const codeChallenge = btoa(String.fromCharCode(...new Uint8Array(hashed)))
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=/g, '');
+
+          const internalParams = new URLSearchParams({
+            client_id: client_id || 'internal-client',
+            redirect_uri: window.location.origin,
+            scope: 'mcp',
+            response_type: 'code',
+            code_challenge: codeChallenge,
+            code_challenge_method: 'S256',
+            resource: window.location.origin + '/mcp',
+          });
+
+          window.location.href = `/authorize?${internalParams.toString()}`;
+        } catch (error) {
+          console.error('Failed to register internal client:', error);
+          // Fallback to basic params if registration fails
+          const fallbackParams = new URLSearchParams({
+            client_id: 'internal-client',
+            redirect_uri: window.location.origin,
+            scope: 'mcp',
+            response_type: 'code',
+            code_challenge: 'placeholder-challenge',
+            code_challenge_method: 'S256',
+            resource: window.location.origin + '/mcp',
+          });
+          window.location.href = `/authorize?${fallbackParams.toString()}`;
+        }
+      };
+
+      generateInternalParams();
+    }
+  }, [authenticated, hasAuthorized, isAuthorizeMode])
+
   if (!ready) {
     return <div>Loading authentication...</div>;
   }
-  
-  // If user is on the authorize route with valid parameters, show the authorization screen
+
   if (isAuthorizeMode && authParams) {
     return <AuthorizeHandler authParams={authParams} />
   }
-  
-  // If user is not authenticated, show the login screen
+
   if (!authenticated) {
     return <LoginScreen />
   }
+
+  if (authenticated && !hasAuthorized && !isAuthorizeMode) {
+    return <div>Redirecting to authorization...</div>;
+  }
   
-  // Main application UI for authenticated users
   return (
     <div style={{ textAlign: 'center', padding: '2rem' }}>
       <h1>{SERVER_NAME} MCP Server</h1>
       <p>User {user?.id} is connected.</p>
-      
-      {/* Container for any additional user controls */}
+
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '1rem' }}>
       </div>
-      
-      {/* Bearer token generator for MCP client connections */}
+
       <div style={{ marginTop: '1rem' }}>
         <BearerTokenGenerator />
       </div>

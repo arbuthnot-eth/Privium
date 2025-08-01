@@ -3,6 +3,7 @@ import { usePrivy, getAccessToken, useIdentityToken } from '@privy-io/react-auth
 import { useState } from 'react'
 import CopyToClipboardButton from './CopyButton'
 import LogoutButton from './LogoutButton'
+import { generateBearer } from './utils/generateBearer'
 
 
 export default function BearerTokenGenerator() {
@@ -11,93 +12,6 @@ export default function BearerTokenGenerator() {
     const [isGenerating, setIsGenerating] = useState(false)
     const [bearerTokenInfo, setBearerTokenInfo] = useState<any>(null)
     const [error, setError] = useState<string | null>(null)
-    const [clientId, setClientId] = useState<string | null>(null)
-    const [clientSecret, setClientSecret] = useState<string | null>(null)
-
-    // Generate PKCE parameters
-    const generatePKCE = () => {
-        const codeVerifier = Array.from(crypto.getRandomValues(new Uint8Array(32)))
-            .map(b => b.toString(16).padStart(2, '0'))
-            .join('');
-
-        const encoder = new TextEncoder();
-        const data = encoder.encode(codeVerifier);
-        return crypto.subtle.digest('SHA-256', data).then(hash => {
-            const hashArray = Array.from(new Uint8Array(hash));
-            const base64Digest = btoa(String.fromCharCode(...hashArray))
-                .replace(/\+/g, '-')
-                .replace(/\//g, '_')
-                .replace(/=/g, '');
-            return { codeVerifier, codeChallenge: base64Digest };
-        });
-    };
-
-    // Register client with the server
-    const registerClient = async () => {
-        const response = await fetch('/reg', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                redirect_uris: [`${window.location.origin}/authorize`]
-            }),
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Failed to register client: ${response.status} - ${errorText}`);
-        }
-
-        const data: RegisterClientResponse = await response.json();
-        return { clientId: data.client_id, clientSecret: data.client_secret };
-    };
-
-    // Exchange authorization code for tokens
-    const exchangeToken = async (authorizationCode: string, codeVerifier: string, clientIdParam: string, redirectUri?: string) => {
-        console.log('exchangeToken called with:', { authorizationCode, codeVerifier, clientIdParam, redirectUri });
-        if (!clientIdParam) {
-            throw new Error('Client ID is required for token exchange');
-        }
-        if (!authorizationCode) {
-            throw new Error('Authorization code is required for token exchange');
-        }
-        if (!codeVerifier) {
-            throw new Error('Code verifier is required for token exchange');
-        }
-
-        // Use provided redirectUri or fallback to the internal redirect URI
-        const finalRedirectUri = redirectUri || `${window.location.origin}/authorize`;
-
-        const params = new URLSearchParams({
-            grant_type: 'authorization_code',
-            code: authorizationCode,
-            redirect_uri: finalRedirectUri,
-            client_id: clientIdParam,
-            code_verifier: codeVerifier,
-        });
-
-        console.log('Sending token exchange request with params:', Object.fromEntries(params));
-        const response = await fetch('/token', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: params.toString(),
-        });
-        console.log('Token exchange response status:', response.status);
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Token exchange failed with response:', errorText);
-            throw new Error(`Failed to exchange token: ${response.status} - ${errorText}`);
-        }
-
-        const responseData: ExchangeTokenResponse = await response.json();
-        console.log('Token exchange successful, received data:', responseData);
-
-        return responseData;
-    };
 
     const generateBearerToken = async () => {
         if (!authenticated) {
@@ -113,92 +27,32 @@ export default function BearerTokenGenerator() {
         setIsGenerating(true);
         setError(null);
         setBearerTokenInfo(null);
-        setClientId(null);
-        setClientSecret(null);
 
         try {
-            // Step 1: Register client
-            console.log('Step 1:');
-            const { clientId: newClientId, clientSecret: newClientSecret } = await registerClient();
-            if (!newClientId) {
-                throw new Error('Failed to register client - no client ID returned');
-            }
-            setClientId(newClientId);
-            setClientSecret(newClientSecret);
-            console.log('Client registered:', newClientId);
-
-            // Step 2: Generate PKCE parameters
-            console.log('Step 2:');
-            const { codeVerifier, codeChallenge } = await generatePKCE();
-            if (!codeVerifier || !codeChallenge) {
-                throw new Error('Failed to generate PKCE parameters');
-            }
-            console.log('PKCE generated');
-
-            // Step 3: Get Privy tokens
-            console.log('Step 3:');
             const accessToken = await getAccessToken();
             if (!accessToken) {
                 throw new Error('Failed to get access token from Privy');
             }
-            console.log('Privy tokens obtained');
 
-            // Step 4: Complete authorization with Privy tokens
-            console.log('Step 4:');
-            const completeAuthResponse = await fetch('/complete-authorize', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    client_id: newClientId,
-                    redirect_uri: `${window.location.origin}/authorize`,
-                    scope: 'mcp',
-                    response_type: 'code',
-                    code_challenge: codeChallenge,
-                    code_challenge_method: 'S256',
-                    resource: `${window.location.origin}/mcp`,
-                    accessToken: accessToken,
-                    idToken: identityToken,
-                }),
-            });
-
-            if (!completeAuthResponse.ok) {
-                const errorText = await completeAuthResponse.text();
-                throw new Error(`Failed to complete authorization: ${completeAuthResponse.status} - ${errorText}`);
+            const token = await generateBearer(accessToken, identityToken);
+            if (!token) {
+                throw new Error('Failed to generate bearer token');
             }
 
-            const authData: CompleteAuthResponse = await completeAuthResponse.json();
-            console.log('Authorization completed, redirecting to:', authData.redirectTo);
-
-            // Extract authorization code from redirect URL
-            const redirectUrl = new URL(authData.redirectTo);
-            const authorizationCode = redirectUrl.searchParams.get('code');
-
-            if (!authorizationCode) {
-                throw new Error('Authorization code not found in redirect URL');
-            }
-
-            console.log('Authorization code obtained:', authorizationCode);
-            console.log('Client ID for token exchange:', newClientId);
-            console.log('Code verifier for token exchange:', codeVerifier);
-
-            // Step 5: Exchange authorization code for bearer token
-            console.log('Step 5:');
-            const tokenData = await exchangeToken(authorizationCode, codeVerifier, newClientId);
-            console.log('Token exchange completed');
-
-            // Step 6: Format the response as requested
+            // Format the response as requested
             const baseUrl = window.location.origin;
             const tokenInfo = {
                 [SERVER_NAME]: {
                     type: "streamable-http",
                     url: `${baseUrl}/mcp`,
                     headers: {
-                        authorization: `Bearer ${tokenData.access_token}`
+                        authorization: `Bearer ${token}`
                     }
                 }
             };
+
+            // Store in sessionStorage for revocation on logout
+            sessionStorage.setItem('bearer_token', token);
 
             setBearerTokenInfo(tokenInfo);
             console.log('Bearer token generation completed successfully');

@@ -126,10 +126,12 @@ export default function AuthorizeHandler({ authParams }: AuthorizeHandlerProps) 
         throw new Error('Failed to complete authorization');
       }
 
-      const data: CompleteAuthResponse = await response.json();
-      console.log('🔵 OAUTH: Received redirect response:', data);
-      console.log('🔵 OAUTH: Redirecting to:', data.redirectTo);
-      window.location.href = data.redirectTo;
+      const data: CompleteAuthResponse = await response.json()
+      const redirectUrl = new URL(data.redirectTo)
+      redirectUrl.searchParams.set('authorized', 'true')
+      console.log('🔵 OAUTH: Received redirect response:', data)
+      console.log('🔵 OAUTH: Redirecting to:', data.redirectTo)
+      window.location.href = redirectUrl.toString()
       setTimeout(() => {
         window.close();
       }, 2400);
