@@ -28,8 +28,8 @@ const authDialogStyle = `
     --text-color: light-dark(#1a1a1a, #ffffff);
     --text-secondary: light-dark(#666666, #999999);
     --border-color: light-dark(#e1e5e9, #404040);
-    --button-primary: light-dark(#007bff, #0d6efd);
-    --button-primary-hover: light-dark(#0056b3, #0b5ed7);
+    --button-primary: light-dark(#007bff, #123524);
+    --button-primary-hover: light-dark(#0056b3,rgb(23, 77, 37));
     --button-secondary: light-dark(#6c757d, #6c757d);
     --button-secondary-hover: light-dark(#545b62, #5a6268);
   }
@@ -41,39 +41,38 @@ const authDialogStyle = `
       --text-color: #ffffff;
       --text-secondary: #999999;
       --border-color: #404040;
-      --button-primary: #0d6efd;
-      --button-primary-hover: #0b5ed7;
+      --button-primary: #123524;
+      --button-primary-hover: rgb(23, 77, 37);
     }
   }
 `;
 
 export default function AuthorizeHandler({ authParams }: AuthorizeHandlerProps) {
   const { ready, authenticated, user } = usePrivy()
+  if (!ready) return <div>Loading...</div>
+
   const { identityToken } = useIdentityToken()
-  const { addSessionSigners, removeSessionSigners} = useSessionSigners()
+  const { addSessionSigners } = useSessionSigners()
   const { wallets } = useWallets()
   const { wallets: solanaWallets } = useSolanaWallets()
 
   // Logout handler
   const { logout } = useLogout({
     onSuccess: () => {
-      console.log('🔴 OAUTH LOGOUT: User logged out to switch accounts');
+      // TODO: revoke logic
     }
-  });
+  })
 
   const [processing, setProcessing] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log('🔵 OAUTH AUTH STATE: ready:', ready, 'authenticated:', authenticated);
     if (ready && authenticated && !accessToken) {
-      console.log('🔵 OAUTH AUTH STATE: Getting access token...');
       getAccessToken().then(token => {
-        console.log('🔵 OAUTH AUTH STATE: Received access token:', !!token);
-        setAccessToken(token);
-      });
+        setAccessToken(token)
+      })
     }
-  }, [ready, authenticated, accessToken]);
+  }, [ready, authenticated, accessToken])
 
   const handleApprove = async () => {
     console.log('🟢 OAUTH: User clicked Grant Authorization');
@@ -139,7 +138,7 @@ export default function AuthorizeHandler({ authParams }: AuthorizeHandlerProps) 
       console.error('🔴 OAUTH ERROR: Authorization error:', err);
       setProcessing(false);
     }
-  };
+  }
 
   const handleCancel = () => {
     console.log('🔴 OAUTH: User clicked Deny Access');
@@ -152,9 +151,7 @@ export default function AuthorizeHandler({ authParams }: AuthorizeHandlerProps) 
     }
     console.log('🔴 OAUTH: Attempting to close window...');
     window.close();
-  };
-
-  if (!ready) return <div>Loading...</div>;
+  }
 
   if (authParams.response_type !== 'code') {
     return <div>Unsupported response type. Only 'code' is supported.</div>;
@@ -192,7 +189,7 @@ export default function AuthorizeHandler({ authParams }: AuthorizeHandlerProps) 
         </p>
       </div>
     </div>
-  );
+  )
 
   return (
     <>
@@ -249,7 +246,7 @@ export default function AuthorizeHandler({ authParams }: AuthorizeHandlerProps) 
               </div>
               <div style={{ fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span>
-                  {user?.email?.address || user?.phone?.number || user?.wallet?.address?.slice(0, 8) + '...' || 'Connected'}
+                  {user?.email?.address || user?.phone?.number || user?.wallet?.address?.slice(0, 5) + '...' + user?.wallet?.address?.slice(-5) || 'Connected'}
                 </span>
                 <button
                   onClick={logout}
@@ -321,5 +318,5 @@ export default function AuthorizeHandler({ authParams }: AuthorizeHandlerProps) 
         </div>
       </div>
     </>
-  );
+  )
 }
