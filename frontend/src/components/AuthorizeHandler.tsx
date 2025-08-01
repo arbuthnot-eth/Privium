@@ -1,7 +1,8 @@
 // frontend/src/components/AuthorizeHandler.tsx
-import { usePrivy, useLogin, useLogout, getAccessToken, useIdentityToken, useSessionSigners, useWallets } from '@privy-io/react-auth';
+import { usePrivy, useLogout, getAccessToken, useIdentityToken, useSessionSigners, useWallets } from '@privy-io/react-auth';
 import { useSolanaWallets } from '@privy-io/react-auth/solana'
 import { useState, useEffect } from 'react'
+import LoginScreen from './LoginScreen'
 
 interface AuthorizeHandlerProps {
   authParams: {
@@ -53,12 +54,7 @@ export default function AuthorizeHandler({ authParams }: AuthorizeHandlerProps) 
   const { wallets } = useWallets()
   const { wallets: solanaWallets } = useSolanaWallets()
 
-  // Login handler
-  const { login } = useLogin({
-    onComplete: async (loginData) => {
-      console.log('🟢 OAUTH LOGIN: User successfully logged in for authorization');
-    },
-  });
+  // Logout handler
   const { logout } = useLogout({
     onSuccess: () => {
       console.log('🔴 OAUTH LOGOUT: User logged out to switch accounts');
@@ -165,15 +161,7 @@ export default function AuthorizeHandler({ authParams }: AuthorizeHandlerProps) 
   }
 
   if (!authenticated) {
-    return (
-      <div style={{ textAlign: 'center', padding: '2rem' }}>
-        <h1>Authorize Access</h1>
-        <p>Connect to grant access to {SERVER_NAME}</p>
-        <button onClick={login} style={{ padding: '12px 24px', fontSize: '16px', cursor: 'pointer' }}>
-          Connect
-        </button>
-      </div>
-    );
+    return <LoginScreen />
   }
 
   if (processing) return (

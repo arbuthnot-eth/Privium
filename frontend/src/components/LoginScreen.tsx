@@ -4,7 +4,7 @@ import { useLogin } from '@privy-io/react-auth'
 export default function LoginScreen() {
   const { login } = useLogin({
     onComplete: async (loginData) => {
-      console.log('🟢 LOGIN: User successfully logged in (LoginScreen)');
+      // TODO: Handle login completion
     }
   });
 

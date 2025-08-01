@@ -91,8 +91,8 @@ async function registerTools(server: McpServer, user: PrivyUser) {
 		}
 	)
 
-	// Register Crossmint tools
-	await registerCrossmintTools(server, user)
+	// Crossmint tools and funcionality
+	// await registerCrossmintTools(server, user)
 
 	// Get Authentication Status Tool
 	server.registerTool(
