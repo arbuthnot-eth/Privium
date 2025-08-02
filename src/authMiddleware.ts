@@ -740,7 +740,7 @@ async function deriveKeyFromToken(tokenStr: string, env: Env): Promise<CryptoKey
 		{
 			name: 'PBKDF2',
 			salt: salt,
-			iterations: 600000,
+			iterations: 100000,
 			hash: 'SHA-256'
 		},
 		keyMaterial,
