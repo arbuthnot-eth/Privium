@@ -23,17 +23,17 @@ export function initCrossmint(): CrossmintWallets {
 
 // Helper function to get fresh user data with latest wallets
 export async function refreshUser(cachedUser: PrivyUser) {
+	// Initialize Privy client
+	const privyClient = initPrivyClient()
 	try {
-		// Initialize Privy client
-		const privyClient = initPrivyClient()
 		// Get fresh user data from Privy using userId string
 		const freshUser = await privyClient.getUserById(cachedUser.id)
 		// Refresh the user data
-		return freshUser
+		return { freshUser, privyClient }
 	} catch (error) {
 		console.error('❌ Error fetching fresh user data:', error)
 		// Fallback to cached user data if fresh fetch fails
-		return cachedUser
+		return { cachedUser, privyClient }
 	}
 }
 
@@ -198,8 +198,8 @@ export const authHandler = (app: Hono<{ Bindings: Env }>, strictMode: boolean) =
 			try {
 				verifiedClaims = await privyClient.verifyAuthToken(token)
 				privyUser = await privyClient.getUser({ idToken })
-				console.log('🛡️  OAUTH: Privy Identity and Access tokens verified for user:', verifiedClaims.userId)
-				await createWalletsIfNeeded(privyUser)
+				console.log('🛡️  OAUTH: Privy Identity and Access tokens verified')
+				await createWalletsIfNeeded(privyUser, privyClient)
 			} catch (error) {
 				console.error('🔴 OAUTH ERROR: Token verification failed:', error)
 				return c.json({
@@ -207,6 +207,9 @@ export const authHandler = (app: Hono<{ Bindings: Env }>, strictMode: boolean) =
 					details: error instanceof Error ? error.message : String(error)
 				}, 401)
 			}
+
+			const { authorizationKey } = await privyClient.walletApi.generateUserSigner({ userJwt: token })
+			privyClient.walletApi.updateAuthorizationKey(authorizationKey)
 
 			// Generate authorization code
 			const authCode = crypto.randomUUID()

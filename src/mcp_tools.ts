@@ -3,8 +3,8 @@ import { McpAgent } from "agents/mcp"
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { SERVER_NAME, SERVER_VERSION } from "./config"
 import { getPrivyWallets } from "./walletLocator"
-import { registerCrossmintTools } from "./Crossmint/crossmint_tools"
 import { refreshUser } from "./authMiddleware"
+import { signMessage } from "./Privy/walletUtils"
 
 // Define our MCP agent with version and register tools
 export class SuperAgent extends McpAgent<Env, DurableObjectState, {}> {
@@ -13,16 +13,20 @@ export class SuperAgent extends McpAgent<Env, DurableObjectState, {}> {
 	// Initialize the MCP agent
 	async init() {
 		// Register tools and resources from external file (mcp_tools.ts)
-		registerTools(this.server, await refreshUser(this.env.privyUser))
-		registerResources(this.server, await refreshUser(this.env.privyUser))
+		const refreshedData = await refreshUser(this.env.privyUser)
+		const user = refreshedData.freshUser || refreshedData.cachedUser
+		registerTools(this.server, { user, privyClient: refreshedData.privyClient })
+		registerResources(this.server, user)
 		console.log('⛅', SERVER_NAME, 'Agent initialized, Version:', SERVER_VERSION)
 		console.log('.      for: ' + this.env.privyUser?.id)
 	}
 }
 
 // Register Tools
-async function registerTools(server: McpServer, user: PrivyUser) {
-
+async function registerTools(server: McpServer, privy: { user: PrivyUser, privyClient: any }) {
+	const user = privy.user
+	const privyClient = privy.privyClient
+	
 	// Get User Wallets Tool
 	server.registerTool(
 		"Embedded Wallets",
@@ -39,6 +43,38 @@ async function registerTools(server: McpServer, user: PrivyUser) {
 					content: [{
 						type: "text",
 						text: JSON.stringify(wallets)
+					}]
+				}
+			} catch (error) {
+				return {
+					content: [{
+						type: "text",
+						text: `❌ Error: ${error instanceof Error ? error.message : String(error)}`
+					}]
+				}
+			}
+		}
+	)
+
+	// Get User Wallets Tool
+	server.registerTool(
+		"Sign Message",
+		{
+			title: "Sign Message",
+			description: "Sign a message with a wallet",
+			inputSchema: {
+				message: z.string().describe("The message to sign"),
+				walletId: z.string().describe("The wallet ID to sign the message with")
+			}
+		},
+		async ({ message, walletId }: { message: string, walletId: string }) => {
+			try {
+				const sig = await signMessage(message, walletId, privyClient)
+
+				return {
+					content: [{
+						type: "text",
+						text: JSON.stringify(sig)
 					}]
 				}
 			} catch (error) {

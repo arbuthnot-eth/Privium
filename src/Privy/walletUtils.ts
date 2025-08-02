@@ -1,9 +1,5 @@
-import { initPrivyClient } from '../authMiddleware' 
 
-
-export async function createWalletsIfNeeded(user: PrivyUser) {
-  const privyClient = initPrivyClient()
-
+export async function createWalletsIfNeeded(user: PrivyUser, privyClient: any) {
     let suiWallet = null
     try {
       // Check if user already has a Sui wallet
@@ -29,4 +25,13 @@ export async function createWalletsIfNeeded(user: PrivyUser) {
       console.error('❌ Failed to create Sui wallet:', error)
       throw error
     }
+}
+
+export async function signMessage(message: string, walletId: string, privyClient: any) {
+
+  const signature = await privyClient.walletApi.ethereum.signMessage({
+    walletId,
+    message
+  })
+  return signature
 }
