@@ -2,45 +2,46 @@
 import { usePrivy, getAccessToken, useIdentityToken } from '@privy-io/react-auth'
 import { useState } from 'react'
 import CopyToClipboardButton from './CopyButton'
-import LogoutButton from './LogoutButton'
+import { useLogout } from './LogoutHandler'
 import { generateBearer } from './utils/generateBearer'
 
 
 export default function BearerTokenGenerator() {
     const { authenticated } = usePrivy()
     const { identityToken } = useIdentityToken()
+    const { logout } = useLogout()
     const [isGenerating, setIsGenerating] = useState(false)
     const [bearerTokenInfo, setBearerTokenInfo] = useState<any>(null)
     const [error, setError] = useState<string | null>(null)
 
     const generateBearerToken = async () => {
         if (!authenticated) {
-            setError('You must be logged in to generate a bearer token');
-            return;
+            setError('You must be logged in to generate a bearer token')
+            return
         }
 
         if (!identityToken) {
-            setError('Identity token not available');
-            return;
+            setError('Identity token not available')
+            return
         }
 
-        setIsGenerating(true);
-        setError(null);
-        setBearerTokenInfo(null);
+        setIsGenerating(true)
+        setError(null)
+        setBearerTokenInfo(null)
 
         try {
-            const accessToken = await getAccessToken();
+            const accessToken = await getAccessToken()
             if (!accessToken) {
-                throw new Error('Failed to get access token from Privy');
+                throw new Error('Failed to get access token from Privy')
             }
 
-            const token = await generateBearer(accessToken, identityToken);
+            const token = await generateBearer(accessToken, identityToken)
             if (!token) {
-                throw new Error('Failed to generate bearer token');
+                throw new Error('Failed to generate bearer token')
             }
 
             // Format the response as requested
-            const baseUrl = window.location.origin;
+            const baseUrl = window.location.origin
             const tokenInfo = {
                 [SERVER_NAME]: {
                     type: "streamable-http",
@@ -49,21 +50,21 @@ export default function BearerTokenGenerator() {
                         authorization: `Bearer ${token}`
                     }
                 }
-            };
+            }
 
             // Store in sessionStorage for revocation on logout
-            sessionStorage.setItem('bearer_token', token);
+            sessionStorage.setItem('bearer_token', token)
 
-            setBearerTokenInfo(tokenInfo);
-            console.log('Bearer token generation completed successfully');
+            setBearerTokenInfo(tokenInfo)
+            console.log('Bearer token generation completed successfully')
 
         } catch (err) {
-            console.error('Error generating bearer token:', err);
-            setError(err instanceof Error ? err.message : 'Failed to generate bearer token');
+            console.error('Error generating bearer token:', err)
+            setError(err instanceof Error ? err.message : 'Failed to generate bearer token')
         } finally {
-            setIsGenerating(false);
+            setIsGenerating(false)
         }
-    };
+    }
 
     return (
         <div style={{
@@ -92,7 +93,7 @@ export default function BearerTokenGenerator() {
                 >
                     {isGenerating ? 'Generating...' : 'Generate Bearer Token'}
                 </button>
-                <LogoutButton />
+                <button onClick={logout}>Disconnect</button>
             </div>
 
             {error && (
@@ -154,5 +155,5 @@ export default function BearerTokenGenerator() {
                 </div>
             )}
         </div>
-    );
+    )
 }

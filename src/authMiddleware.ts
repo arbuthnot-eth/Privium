@@ -39,7 +39,7 @@ export async function refreshUser(cachedUser: PrivyUser) {
 
 // Secure KV Put with expiration TTL
 async function secureKvPut(env: Env, key: string, value: string, ttl: number) {
-	await env.OAUTH_KV.put(key, value, { expirationTtl: ttl });
+	await env.OAUTH_KV.put(key, value, { expirationTtl: ttl })
 }
 
 // Auth middleware
@@ -615,7 +615,7 @@ export const authHandler = (app: Hono<{ Bindings: Env, Variables: { privyUser: P
 			const params = new URLSearchParams(body)
 			const token = params.get('token')
 			const revokeAll = params.get('revoke_all') === 'true'
-
+			
 			if (!token) {
 				return c.json({ error: 'invalid_request' }, 400)
 			}
@@ -641,10 +641,9 @@ export const authHandler = (app: Hono<{ Bindings: Env, Variables: { privyUser: P
 				return c.json({ error: 'invalid_token' }, 401)
 			}
 			const token = authHeader.substring(7)
-
 			// Revoke the specific token (not all)
-			await revokeToken(c.env, token, false)
-
+			await revokeToken(c.env, token, true)
+			
 			// Return 204 No Content
 			return c.json({ message: 'User tokens revoked' })
 		} catch (error) {
@@ -765,7 +764,7 @@ export async function revokeToken(env: Env, token: string, revokeAll: boolean = 
 			let tokenDataStr = await env.OAUTH_KV.get(`access_token:${hashedToken}`) ||
 				await env.OAUTH_KV.get(`refresh_token:${hashedToken}`)
 			if (tokenDataStr) {
-				const encryptedTokenData = JSON.parse(tokenDataStr);
+				const encryptedTokenData = JSON.parse(tokenDataStr)
 				const unwrappedKey = await crypto.subtle.unwrapKey('raw', base64ToArrayBuffer(encryptedTokenData.wrappedKey), await deriveKeyFromToken(token, env), { name: 'AES-KW' }, { name: 'AES-GCM' }, false, ['decrypt'])
 				const unwrappedHmacKey = await crypto.subtle.unwrapKey('raw', base64ToArrayBuffer(encryptedTokenData.hmacKey), await deriveKeyFromToken(token, env), { name: 'AES-KW' }, { name: 'HMAC', hash: 'SHA-256' }, true, ['verify'])
 				const tokenData = await decryptProps(encryptedTokenData.encryptedData, encryptedTokenData.iv, unwrappedKey, encryptedTokenData.hmac, unwrappedHmacKey)

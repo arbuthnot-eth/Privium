@@ -27,6 +27,13 @@ export class SuperAgent extends McpAgent<Env, DurableObjectState, {}> {
 		if (!user) {
 			throw new Error("No user available");
 		}
+
+		// Verify Id consistency
+		if (user.id !== cachedUser.id) {
+			console.error('🔴 AUTH ERROR: User ID mismatch between cached and refreshed data')
+			throw new Error('User ID mismatch - potential security issue')
+		}
+		
 		const privyClient = refreshedData.privyClient
 		registerTools(this.server, { user, privyClient })
 		registerResources(this.server, user)

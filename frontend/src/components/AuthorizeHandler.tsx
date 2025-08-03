@@ -1,24 +1,25 @@
 // frontend/src/components/AuthorizeHandler.tsx
-import { usePrivy, useLogout, getAccessToken, useIdentityToken, useSessionSigners, useWallets } from '@privy-io/react-auth';
+import { usePrivy, getAccessToken, useIdentityToken, useSessionSigners, useWallets } from '@privy-io/react-auth'
 import { useSolanaWallets } from '@privy-io/react-auth/solana'
 import { useState, useEffect } from 'react'
 import LoginScreen from './LoginScreen'
+import { useLogout } from './LogoutHandler'
 
 interface AuthorizeHandlerProps {
   authParams: {
-    client_id: string | null;
-    redirect_uri: string | null;
-    scope: string | null;
-    state: string | null;
-    response_type: string | null;
-    code_challenge: string | null;
-    code_challenge_method: string | null;
-    resource: string | null;
+    client_id: string | null
+    redirect_uri: string | null
+    scope: string | null
+    state: string | null
+    response_type: string | null
+    code_challenge: string | null
+    code_challenge_method: string | null
+    resource: string | null
   }
 }
 
 interface CompleteAuthResponse {
-  redirectTo: string;
+  redirectTo: string
 }
 
 const authDialogStyle = `
@@ -55,16 +56,10 @@ export default function AuthorizeHandler({ authParams }: AuthorizeHandlerProps) 
   const { addSessionSigners } = useSessionSigners()
   const { wallets } = useWallets()
   const { wallets: solanaWallets } = useSolanaWallets()
+  const { logout } = useLogout()
 
-  // Logout handler
-  const { logout } = useLogout({
-    onSuccess: () => {
-      // TODO: revoke logic
-    }
-  })
-
-  const [processing, setProcessing] = useState(false);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [processing, setProcessing] = useState(false)
+  const [accessToken, setAccessToken] = useState<string | null>(null)
 
   useEffect(() => {
     if (ready && authenticated && !accessToken) {
@@ -75,8 +70,8 @@ export default function AuthorizeHandler({ authParams }: AuthorizeHandlerProps) 
   }, [ready, authenticated, accessToken])
 
   const handleApprove = async () => {
-    console.log('🟢 OAUTH: User clicked Grant Authorization');
-    console.log('🔵 OAUTH: Starting handleApprove with accessToken:', !!accessToken, 'redirect_uri:', authParams.redirect_uri);
+    console.log('🟢 OAUTH: User clicked Grant Authorization')
+    console.log('🔵 OAUTH: Starting handleApprove with accessToken:', !!accessToken, 'redirect_uri:', authParams.redirect_uri)
     if (!accessToken || !authParams.redirect_uri || processing) return
     setProcessing(true)
 
@@ -120,10 +115,10 @@ export default function AuthorizeHandler({ authParams }: AuthorizeHandlerProps) 
           accessToken: accessToken,
           idToken: identityToken,
         }),
-      });
+      })
 
       if (!response.ok) {
-        throw new Error('Failed to complete authorization');
+        throw new Error('Failed to complete authorization')
       }
 
       const data: CompleteAuthResponse = await response.json()
@@ -133,29 +128,29 @@ export default function AuthorizeHandler({ authParams }: AuthorizeHandlerProps) 
       console.log('🔵 OAUTH: Redirecting to:', data.redirectTo)
       window.location.href = redirectUrl.toString()
       setTimeout(() => {
-        window.close();
-      }, 2400);
+        window.close()
+      }, 2400)
     } catch (err) {
-      console.error('🔴 OAUTH ERROR: Authorization error:', err);
-      setProcessing(false);
+      console.error('🔴 OAUTH ERROR: Authorization error:', err)
+      setProcessing(false)
     }
   }
 
   const handleCancel = () => {
-    console.log('🔴 OAUTH: User clicked Deny Access');
+    console.log('🔴 OAUTH: User clicked Deny Access')
     if (authParams.redirect_uri) {
-      const redirectUrl = new URL(authParams.redirect_uri);
-      redirectUrl.searchParams.set('error', 'access_denied');
-      if (authParams.state) redirectUrl.searchParams.set('state', authParams.state);
-      console.log('🔴 OAUTH: Redirecting with access_denied error to:', redirectUrl.toString());
-      window.location.href = redirectUrl.toString();
+      const redirectUrl = new URL(authParams.redirect_uri)
+      redirectUrl.searchParams.set('error', 'access_denied')
+      if (authParams.state) redirectUrl.searchParams.set('state', authParams.state)
+      console.log('🔴 OAUTH: Redirecting with access_denied error to:', redirectUrl.toString())
+      window.location.href = redirectUrl.toString()
     }
-    console.log('🔴 OAUTH: Attempting to close window...');
-    window.close();
+    console.log('🔴 OAUTH: Attempting to close window...')
+    window.close()
   }
 
   if (authParams.response_type !== 'code') {
-    return <div>Unsupported response type. Only 'code' is supported.</div>;
+    return <div>Unsupported response type. Only 'code' is supported.</div>
   }
 
   if (!authenticated) {

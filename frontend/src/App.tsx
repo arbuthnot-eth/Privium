@@ -11,35 +11,35 @@ import AuthorizeHandler from './components/AuthorizeHandler'
 export default function App() {
   const { ready, authenticated, user } = usePrivy()
 
-  const [isAuthorizeMode, setIsAuthorizeMode] = useState(false);
+  const [isAuthorizeMode, setIsAuthorizeMode] = useState(false)
   const [authParams, setAuthParams] = useState<{
-    client_id: string | null;
-    redirect_uri: string | null;
-    scope: string | null;
-    state: string | null;
-    response_type: string | null;
-    code_challenge: string | null;
-    code_challenge_method: string | null;
-    resource: string | null;
-  } | null>(null);
+    client_id: string | null
+    redirect_uri: string | null
+    scope: string | null
+    state: string | null
+    response_type: string | null
+    code_challenge: string | null
+    code_challenge_method: string | null
+    resource: string | null
+  } | null>(null)
 
-  const [hasAuthorized, setHasAuthorized] = useState(false);
+  const [hasAuthorized, setHasAuthorized] = useState(false)
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const authorizedParam = params.get('authorized');
+    const params = new URLSearchParams(window.location.search)
+    const authorizedParam = params.get('authorized')
 
     // Detect successful authorization redirect and set flag
     if (authorizedParam === 'true' && !hasAuthorized) {
-      setHasAuthorized(true);
+      setHasAuthorized(true)
       // Clean up URL by removing query param (prevents re-trigger on refresh)
-      const cleanUrl = window.location.origin + window.location.pathname;
-      window.history.replaceState({}, '', cleanUrl);
-      return;
+      const cleanUrl = window.location.origin + window.location.pathname
+      window.history.replaceState({}, '', cleanUrl)
+      return
     }
 
     if (window.location.pathname === '/authorize') {
-      setIsAuthorizeMode(true);
+      setIsAuthorizeMode(true)
       const parsedAuthParams = {
         client_id: params.get('client_id'),
         redirect_uri: params.get('redirect_uri'),
@@ -49,23 +49,17 @@ export default function App() {
         code_challenge: params.get('code_challenge'),
         code_challenge_method: params.get('code_challenge_method'),
         resource: params.get('resource') || window.location.origin + '/mcp',
-      };
-      setAuthParams(parsedAuthParams);
-      return;
+      }
+      setAuthParams(parsedAuthParams)
+      return
     }
 
-    const authorized = sessionStorage.getItem('hasAuthorized');
+    const authorized = sessionStorage.getItem('hasAuthorized')
     if (authorized) {
-      setHasAuthorized(true);
+      setHasAuthorized(true)
     }
-  }, []); // Empty dependency array to run only on mount
+  }, []) // Empty dependency array to run only on mount
 
-  // MOVED UP: This useEffect must be before any early returns to ensure consistent hook calls
-  useEffect(() => {
-    if (hasAuthorized) {
-      sessionStorage.setItem('hasAuthorized', 'true');
-    }
-  }, [hasAuthorized])
 
   useEffect(() => {
     if (authenticated && !hasAuthorized && !isAuthorizeMode) {
@@ -75,20 +69,20 @@ export default function App() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ redirect_uris: [window.location.origin] }),
-          });
-          const data = await regResponse.json() as RegisterClientResponse;
-          const client_id = data.client_id;
+          })
+          const data = await regResponse.json() as RegisterClientResponse
+          const client_id = data.client_id
           
           // Optional: Generate PKCE (for full compliance)
           const codeVerifier = Array.from(crypto.getRandomValues(new Uint8Array(32)))
             .map(b => b.toString(16).padStart(2, '0'))
-            .join('');
-          const encoder = new TextEncoder();
-          const hashed = await crypto.subtle.digest('SHA-256', encoder.encode(codeVerifier));
+            .join('')
+          const encoder = new TextEncoder()
+          const hashed = await crypto.subtle.digest('SHA-256', encoder.encode(codeVerifier))
           const codeChallenge = btoa(String.fromCharCode(...new Uint8Array(hashed)))
             .replace(/\+/g, '-')
             .replace(/\//g, '_')
-            .replace(/=/g, '');
+            .replace(/=/g, '')
 
           const internalParams = new URLSearchParams({
             client_id: client_id || 'internal-client',
@@ -98,11 +92,11 @@ export default function App() {
             code_challenge: codeChallenge,
             code_challenge_method: 'S256',
             resource: window.location.origin + '/mcp',
-          });
+          })
 
-          window.location.href = `/authorize?${internalParams.toString()}`;
+          window.location.href = `/authorize?${internalParams.toString()}`
         } catch (error) {
-          console.error('Failed to register internal client:', error);
+          console.error('Failed to register internal client:', error)
           // Fallback to basic params if registration fails
           const fallbackParams = new URLSearchParams({
             client_id: 'internal-client',
@@ -112,17 +106,17 @@ export default function App() {
             code_challenge: 'placeholder-challenge',
             code_challenge_method: 'S256',
             resource: window.location.origin + '/mcp',
-          });
-          window.location.href = `/authorize?${fallbackParams.toString()}`;
+          })
+          window.location.href = `/authorize?${fallbackParams.toString()}`
         }
-      };
+      }
 
-      generateInternalParams();
+      generateInternalParams()
     }
   }, [authenticated, hasAuthorized, isAuthorizeMode])
 
   if (!ready) {
-    return <div>Loading authentication...</div>;
+    return <div>Loading authentication...</div>
   }
 
   if (isAuthorizeMode && authParams) {
@@ -134,7 +128,7 @@ export default function App() {
   }
 
   if (authenticated && !hasAuthorized && !isAuthorizeMode) {
-    return <div>Redirecting to authorization...</div>;
+    return <div>Redirecting to authorization...</div>
   }
   
   return (
@@ -149,5 +143,5 @@ export default function App() {
         <BearerTokenGenerator />
       </div>
     </div>
-  );
+  )
 }
