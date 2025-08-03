@@ -4,7 +4,7 @@ import { requireAuth, authHandler } from "./authMiddleware"
 import { SERVER_NAME, SERVER_VERSION } from "./config"
 
 // Hono App
-const app = new Hono<{ Bindings: Env }>()
+const app = new Hono<{ Bindings: Env, Variables: { privyUser: PrivyUser } }>()
 
 // Auth Handler (strictMode disabled)
 authHandler(app, false)
@@ -32,26 +32,24 @@ app.get('/mcp', async (c) => {
 // MCP API with Bearer Token validation (POST requests)
 app.post('/mcp', requireAuth, async (c) => {
 	try {
-		return SuperAgent.serve('/mcp').fetch(c.req.raw, c.env, c.executionCtx)
+		const newRequest = new Request(c.req.raw, { headers: c.req.raw.headers });
+		newRequest.headers.set('X-Privy-User', JSON.stringify(c.get('privyUser')));
+		return SuperAgent.serve('/mcp').fetch(newRequest, c.env, c.executionCtx)
 	} catch (error) {
 		console.error('🔴 MCP ERROR: Request failed:', error)
 		return c.text('Internal Server Error', 500)
 	}
 })
 
-// MCP API with Bearer Token validation (catch-all for other methods)
 app.all('/mcp/*', requireAuth, async (c) => {
 	try {
-		return SuperAgent.serve('/mcp').fetch(c.req.raw, c.env, c.executionCtx)
+		const newRequest = new Request(c.req.raw, { headers: c.req.raw.headers });
+		newRequest.headers.set('X-Privy-User', JSON.stringify(c.get('privyUser')));
+		return SuperAgent.serve('/mcp').fetch(newRequest, c.env, c.executionCtx)
 	} catch (error) {
 		console.error('🔴 MCP ERROR: Request failed:', error)
 		return c.text('Internal Server Error', 500)
 	}
-})
-
-// Prevents asset fallback for invalid metadata paths
-app.get('/.well-known/*', (c) => {
-	return c.text('Not Found', 404)
 })
 
 // Serve static assets (fallback for other requests)

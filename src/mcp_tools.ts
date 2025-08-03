@@ -12,13 +12,25 @@ export class SuperAgent extends McpAgent<Env, DurableObjectState, {}> {
 
 	// Initialize the MCP agent
 	async init() {
-		// Register tools and resources from external file (mcp_tools.ts)
-		const refreshedData = await refreshUser(this.env.privyUser)
-		const user = refreshedData.freshUser || refreshedData.cachedUser
-		registerTools(this.server, { user, privyClient: refreshedData.privyClient })
-		registerResources(this.server, user)
 		console.log('⛅', SERVER_NAME, 'Agent initialized, Version:', SERVER_VERSION)
 		console.log('.      for: ' + this.env.privyUser?.id)
+	}
+
+	async fetch(request: Request) {
+		const userJson = request.headers.get('X-Privy-User')
+		if (!userJson) {
+			throw new Error('No user provided in request')
+		}
+		const cachedUser = JSON.parse(userJson)
+		const refreshedData = await refreshUser(cachedUser)
+		const user = refreshedData.freshUser || refreshedData.cachedUser
+		if (!user) {
+			throw new Error("No user available");
+		}
+		const privyClient = refreshedData.privyClient
+		registerTools(this.server, { user, privyClient })
+		registerResources(this.server, user)
+		return super.fetch(request)
 	}
 }
 
@@ -26,7 +38,7 @@ export class SuperAgent extends McpAgent<Env, DurableObjectState, {}> {
 async function registerTools(server: McpServer, privy: { user: PrivyUser, privyClient: any }) {
 	const user = privy.user
 	const privyClient = privy.privyClient
-	
+
 	// Get User Wallets Tool
 	server.registerTool(
 		"Embedded Wallets",

@@ -43,7 +43,7 @@ async function secureKvPut(env: Env, key: string, value: string, ttl: number) {
 }
 
 // Auth middleware
-export const requireAuth = async (c: Context<{ Bindings: Env }>, next: any) => {
+export const requireAuth = async (c: Context<{ Bindings: Env, Variables: { privyUser: PrivyUser } }>, next: any) => {
 	// Validate OAuth Bearer token
 	const authHeader = c.req.header('Authorization')
 	if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -99,13 +99,13 @@ export const requireAuth = async (c: Context<{ Bindings: Env }>, next: any) => {
 	console.log('🛡️  MCP: Validated decrypted token for user:', tokenData.privyUser.id)
 
 	// Set user context
-	c.env.privyUser = tokenData.privyUser
+	c.set('privyUser', tokenData.privyUser)
 
 	await next()
 }
 
 // Auth Handler
-export const authHandler = (app: Hono<{ Bindings: Env }>, strictMode: boolean) => {
+export const authHandler = (app: Hono<{ Bindings: Env, Variables: { privyUser: PrivyUser } }>, strictMode: boolean) => {
 	// Add CORS middleware
 	app.use('/*', cors({
 		origin: '*',
