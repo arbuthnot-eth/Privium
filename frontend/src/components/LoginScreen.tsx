@@ -9,11 +9,14 @@ export default function LoginScreen() {
   });
 
   return (
-    <div style={{ textAlign: 'center', padding: '2rem' }}>
-      <h1>{SERVER_NAME} MCP Server</h1>
-      <button onClick={login} style={{ padding: '12px 24px', fontSize: '16px', cursor: 'pointer' }}>
-        Connect
-      </button>
+    <div className="container-center">
+      <div className="page app-container stack text-center">
+        <h1 className="page-title">{SERVER_NAME} MCP Server</h1>
+        <p className="page-subtitle">Sign in to continue</p>
+        <div className="btn-group" style={{ justifyContent: 'center' }}>
+          <button className="btn btn-primary btn-lg" onClick={login}>Connect</button>
+        </div>
+      </div>
     </div>
   );
 }

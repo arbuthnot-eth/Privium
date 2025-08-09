@@ -116,7 +116,14 @@ export default function App() {
   }, [authenticated, hasAuthorized, isAuthorizeMode])
 
   if (!ready) {
-    return <div>Loading authentication...</div>
+    return (
+      <div className="container-center">
+        <div className="page app-container stack text-center">
+          <h1 className="page-title">{SERVER_NAME} MCP Server</h1>
+          <p className="page-subtitle">Loading authentication...</p>
+        </div>
+      </div>
+    )
   }
 
   if (isAuthorizeMode && authParams) {
@@ -128,19 +135,27 @@ export default function App() {
   }
 
   if (authenticated && !hasAuthorized && !isAuthorizeMode) {
-    return <div>Redirecting to authorization...</div>
+    return (
+      <div className="container-center">
+        <div className="page app-container stack text-center">
+          <h1 className="page-title">{SERVER_NAME} MCP Server</h1>
+          <p className="page-subtitle">Redirecting to authorization...</p>
+        </div>
+      </div>
+    )
   }
   
   return (
-    <div style={{ textAlign: 'center', padding: '2rem' }}>
-      <h1>{SERVER_NAME} MCP Server</h1>
-      <p>User {user?.id} is connected.</p>
+    <div className="container-center">
+      <div className="page app-container stack-lg">
+        <div className="text-center">
+          <h1 className="page-title">{SERVER_NAME} MCP Server</h1>
+          <p className="page-subtitle">User {user?.id} is connected.</p>
+        </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '1rem' }}>
-      </div>
-
-      <div style={{ marginTop: '1rem' }}>
-        <BearerTokenGenerator />
+        <div className="section">
+          <BearerTokenGenerator />
+        </div>
       </div>
     </div>
   )

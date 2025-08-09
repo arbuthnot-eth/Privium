@@ -22,31 +22,7 @@ interface CompleteAuthResponse {
   redirectTo: string
 }
 
-const authDialogStyle = `
-  :root {
-    --bg-color: light-dark(#ffffff, #1a1a1a);
-    --card-bg: light-dark(#ffffff, #2a2a2a);
-    --text-color: light-dark(#1a1a1a, #ffffff);
-    --text-secondary: light-dark(#666666, #999999);
-    --border-color: light-dark(#e1e5e9, #404040);
-    --button-primary: light-dark(#007bff, #123524);
-    --button-primary-hover: light-dark(#0056b3,rgb(23, 77, 37));
-    --button-secondary: light-dark(#6c757d, #6c757d);
-    --button-secondary-hover: light-dark(#545b62, #5a6268);
-  }
-
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg-color: #1a1a1a;
-      --card-bg: #2a2a2a;
-      --text-color: #ffffff;
-      --text-secondary: #999999;
-      --border-color: #404040;
-      --button-primary: #123524;
-      --button-primary-hover: rgb(23, 77, 37);
-    }
-  }
-`
+// All visual styles are moved to `index.css` classes
 
 export default function AuthorizeHandler({ authParams }: AuthorizeHandlerProps) {
   const { ready, authenticated, user } = usePrivy()
@@ -158,161 +134,46 @@ export default function AuthorizeHandler({ authParams }: AuthorizeHandlerProps) 
   }
 
   if (processing) return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'color-mix(in srgb, var(--bg-color) 80%, transparent)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000
-    }}>
-      <div style={{
-        backgroundColor: 'var(--card-bg)',
-        border: '1px solid var(--border-color)',
-        borderRadius: '12px',
-        padding: '24px',
-        textAlign: 'center',
-        color: 'var(--text-color)',
-        maxWidth: '300px'
-      }}>
-        <h3 style={{ margin: '0 0 12px 0', fontSize: '18px' }}>Processing...</h3>
-        <p style={{ margin: 0, fontSize: '14px', opacity: 0.8 }}>
-          Completing authorization
-        </p>
+    <div className="modal-overlay">
+      <div className="card processing-card">
+        <h3>Processing...</h3>
+        <p className="mt-2">Completing authorization</p>
       </div>
     </div>
   )
 
   return (
-    <>
-      <style>{authDialogStyle}</style>
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'color-mix(in srgb, var(--bg-color) 80%, transparent)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000
-      }}>
-        <div style={{
-          backgroundColor: 'var(--card-bg)',
-          border: '1px solid var(--border-color)',
-          borderRadius: '12px',
-          padding: '24px',
-          width: '400px',
-          maxWidth: '90vw',
-          color: 'var(--text-color)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
-        }}>
-          <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-            <h2 style={{ margin: '0 0 8px 0', fontSize: '20px', fontWeight: '600' }}>
-              Authorize Access
-            </h2>
-            <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-secondary)' }}>
-              An MCP Client wants to access your {SERVER_NAME} MCP Server
-            </p>
-          </div>
-
-          <div style={{
-            backgroundColor: 'color-mix(in srgb, var(--border-color) 30%, transparent)',
-            borderRadius: '8px',
-            padding: '16px',
-            marginBottom: '20px'
-          }}>
-            <div style={{ marginBottom: '12px' }}>
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                PERMISSIONS
-              </div>
-              <div style={{ fontSize: '14px' }}>
-                • Access to {SERVER_NAME} MCP Server tools and resources
-              </div>
-            </div>
-
-            <div style={{ marginBottom: '12px' }}>
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                ACCOUNT
-              </div>
-              <div style={{ fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span>
-                  {user?.email?.address || user?.phone?.number || user?.wallet?.address?.slice(0, 5) + '...' + user?.wallet?.address?.slice(-5) || 'Connected'}
-                </span>
-                <button
-                  onClick={logout}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text-secondary)',
-                    cursor: 'pointer',
-                    fontSize: '12px',
-                    textDecoration: 'underline',
-                    padding: 0
-                  }}
-                >
-                  Disconnect
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <button
-              onClick={handleCancel}
-              style={{
-                flex: 1,
-                padding: '12px',
-                fontSize: '14px',
-                cursor: 'pointer',
-                backgroundColor: 'var(--button-secondary)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                transition: 'background-color 0.2s'
-              }}
-              onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--button-secondary-hover)'}
-              onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'var(--button-secondary)'}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleApprove}
-              style={{
-                flex: 2,
-                padding: '12px',
-                fontSize: '14px',
-                cursor: 'pointer',
-                backgroundColor: 'var(--button-primary)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                transition: 'background-color 0.2s',
-                fontWeight: '500'
-              }}
-              onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--button-primary-hover)'}
-              onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'var(--button-primary)'}
-            >
-              Grant Authorization
-            </button>
-          </div>
-
-          <p style={{
-            fontSize: '11px',
-            color: 'var(--text-secondary)',
-            textAlign: 'center',
-            margin: '16px 0 0 0',
-            lineHeight: '1.4'
-          }}>
-            This allows the MCP Client to connect to your {SERVER_NAME} MCP Server using OAuth 2.1 with PKCE
-          </p>
+    <div className="modal-overlay">
+      <div className="modal">
+        <div className="modal-header">
+          <h2 className="modal-title">Authorize Access</h2>
+          <p className="modal-subtitle">An MCP Client wants to access your {SERVER_NAME} MCP Server</p>
         </div>
+
+        <div className="info-box">
+          <div className="info-section">
+            <div className="overline">PERMISSIONS</div>
+            <div>• Access to {SERVER_NAME} MCP Server tools and resources</div>
+          </div>
+
+          <div className="info-section">
+            <div className="overline">ACCOUNT</div>
+            <div className="row-between">
+              <span>
+                {user?.email?.address || user?.phone?.number || user?.wallet?.address?.slice(0, 5) + '...' + user?.wallet?.address?.slice(-5) || 'Connected'}
+              </span>
+              <button className="btn btn-ghost" onClick={logout}>Disconnect</button>
+            </div>
+          </div>
+        </div>
+
+        <div className="btn-group" style={{ display: 'flex' }}>
+          <button className="btn btn-secondary" style={{ flex: 1 }} onClick={handleCancel}>Cancel</button>
+          <button className="btn btn-primary" style={{ flex: 2 }} onClick={handleApprove}>Grant Authorization</button>
+        </div>
+
+        <p className="caption">This allows the MCP Client to connect to your {SERVER_NAME} MCP Server using OAuth 2.1 with PKCE</p>
       </div>
-    </>
+    </div>
   )
 }

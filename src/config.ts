@@ -1,7 +1,7 @@
 // Centralized configuration for the MCP server
 const SERVER_CONFIG = {
   NAME: "Privium",
-  VERSION: "0.99.48"
+  VERSION: "0.99.50"
 } as const
 
 // Export individual constants for convenience

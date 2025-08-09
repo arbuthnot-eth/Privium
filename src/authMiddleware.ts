@@ -773,7 +773,7 @@ export async function revokeToken(env: Env, token: string, revokeAll: boolean = 
 			}
 		}
 
-		console.log(`🛡️  MCP: Disconnected and revoked user token${revokeAll ? ' and all user tokens' : ''}`)
+		console.log(`🛡️  MCP: Disconnected and revoked${revokeAll ? ' all user tokens' : ' user token'}`)
 	} catch (error) {
 		console.error('🔴 Revoke token failed:', error)
 		throw error
