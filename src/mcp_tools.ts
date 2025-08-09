@@ -25,7 +25,7 @@ export class SuperAgent extends McpAgent<Env, DurableObjectState, {}> {
 		const refreshedData = await refreshUser(cachedUser)
 		const user = refreshedData.freshUser || refreshedData.cachedUser
 		if (!user) {
-			throw new Error("No user available");
+			throw new Error("No user available")
 		}
 
 		// Verify Id consistency

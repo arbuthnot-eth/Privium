@@ -33,7 +33,7 @@ export const useLogout = () => {
         sessionStorage.removeItem('bearer_token')
         console.log('🔴 LOGOUT: Revoked all tokens for user')
       } else {
-        console.log('🔴 LOGOUT: No bearer token found or generated; skipping revocation')
+        console.log('🔴 LOGOUT: No bearer token found or generated, skipping revocation')
       }
 
       // Clear session storage flags

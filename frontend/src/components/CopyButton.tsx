@@ -1,34 +1,34 @@
 // frontend/src/components/CopyButton.tsx
-import { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react'
 
 interface CopyButtonProps {
-  textToCopy: string;
-  buttonText?: string;
-  className?: string;
-  onHoverChange?: (hovered: boolean) => void;
+  textToCopy: string
+  buttonText?: string
+  className?: string
+  onHoverChange?: (hovered: boolean) => void
 }
 
 export default function CopyToClipboardButton({ textToCopy, buttonText = 'Copy', className, onHoverChange }: CopyButtonProps) {
-  const [isCopied, setIsCopied] = useState(false);
+  const [isCopied, setIsCopied] = useState(false)
   
   const handleCopyClick = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(textToCopy);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
+      await navigator.clipboard.writeText(textToCopy)
+      setIsCopied(true)
+      setTimeout(() => setIsCopied(false), 2000)
     } catch (err) {
-      console.error('Failed to copy text: ', err);
+      console.error('Failed to copy text: ', err)
     }
-  }, [textToCopy]);
+  }, [textToCopy])
   
   const handleMouseEnter = useCallback(() => {
-    onHoverChange?.(true);
-  }, [onHoverChange]);
+    onHoverChange?.(true)
+  }, [onHoverChange])
   
   const handleMouseLeave = useCallback(() => {
     // Small delay to prevent flickering when moving between button and token
-    setTimeout(() => onHoverChange?.(false), 50);
-  }, [onHoverChange]);
+    setTimeout(() => onHoverChange?.(false), 50)
+  }, [onHoverChange])
   
   return (
     <button
@@ -39,5 +39,5 @@ export default function CopyToClipboardButton({ textToCopy, buttonText = 'Copy',
     >
       {isCopied ? 'Copied!' : buttonText}
     </button>
-  );
+  )
 }

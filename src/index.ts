@@ -32,8 +32,8 @@ app.get('/mcp', async (c) => {
 // MCP API with Bearer Token validation (POST requests)
 app.post('/mcp', requireAuth, async (c) => {
 	try {
-		const newRequest = new Request(c.req.raw, { headers: c.req.raw.headers });
-		newRequest.headers.set('X-Privy-User', JSON.stringify(c.get('privyUser')));
+		const newRequest = new Request(c.req.raw, { headers: c.req.raw.headers })
+		newRequest.headers.set('X-Privy-User', JSON.stringify(c.get('privyUser')))
 		return SuperAgent.serve('/mcp').fetch(newRequest, c.env, c.executionCtx)
 	} catch (error) {
 		console.error('🔴 MCP ERROR: Request failed:', error)
@@ -43,8 +43,8 @@ app.post('/mcp', requireAuth, async (c) => {
 
 app.all('/mcp/*', requireAuth, async (c) => {
 	try {
-		const newRequest = new Request(c.req.raw, { headers: c.req.raw.headers });
-		newRequest.headers.set('X-Privy-User', JSON.stringify(c.get('privyUser')));
+		const newRequest = new Request(c.req.raw, { headers: c.req.raw.headers })
+		newRequest.headers.set('X-Privy-User', JSON.stringify(c.get('privyUser')))
 		return SuperAgent.serve('/mcp').fetch(newRequest, c.env, c.executionCtx)
 	} catch (error) {
 		console.error('🔴 MCP ERROR: Request failed:', error)

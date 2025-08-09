@@ -1,13 +1,13 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App';
-import './index.css';
-import { PrivyProvider } from '@privy-io/react-auth';
-import { toSolanaWalletConnectors } from '@privy-io/react-auth/solana';
-import { Buffer } from 'buffer';
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App'
+import './index.css'
+import { PrivyProvider } from '@privy-io/react-auth'
+import { toSolanaWalletConnectors } from '@privy-io/react-auth/solana'
+import { Buffer } from 'buffer'
 
 // Configure the Buffer polyfill for global use
-window.Buffer = Buffer;
+window.Buffer = Buffer
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -35,4 +35,4 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <App />
     </PrivyProvider>
   </React.StrictMode>
-);
+)

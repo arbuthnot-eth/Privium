@@ -6,7 +6,7 @@ export default function LoginScreen() {
     onComplete: async (loginData) => {
       // TODO: Handle login completion
     }
-  });
+  })
 
   return (
     <div className="container-center">
@@ -18,5 +18,5 @@ export default function LoginScreen() {
         </div>
       </div>
     </div>
-  );
+  )
 }
