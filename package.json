@@ -19,9 +19,9 @@
 	},
 	"dependencies": {
 		"@crossmint/wallets-sdk": "^0.11.2",
-		"@modelcontextprotocol/sdk": "^1.16.0",
-		"@privy-io/server-auth": "^1.28.4",
-		"agents": "^0.0.109",
+		"@modelcontextprotocol/sdk": "^1.17.2",
+		"@privy-io/server-auth": "^1.31.0",
+		"agents": "^0.0.111",
 		"hono": "^4.8.5",
 		"zod": "^3.25.67"
 	},
