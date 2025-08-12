@@ -12,9 +12,9 @@ echo "Generating codebase documentation..."
 (
   echo "File Structure:"
   echo "."
-  find . -not -path '*/node_modules/*' -not -path '*/.wrangler/*' -not -path '*/.git/*' -not -path '*/dist/*' -not -path '*/Docs/*' -not -name 'index3.ts' -not -name 'zodebase.txt' -not -name 'codebase.txt' -print | sort | awk -F'/' '{ if ($0 != ".") { indent = ""; for (i=2; i<NF; i++) indent = indent " "; printf "%s|-- %s\n", indent, $NF } }'
+  find . -not -path '*/node_modules/*' -not -path '*/.wrangler/*' -not -path '*/.git/*' -not -path '*/dist/*' -not -path '*/Docs/*' -not -path '*/assets/*' -not -name 'index3.ts' -not -name 'zodebase.txt' -not -name 'codebase.txt' -print | sort | awk -F'/' '{ if ($0 != ".") { indent = ""; for (i=2; i<NF; i++) indent = indent " "; printf "%s|-- %s\n", indent, $NF } }'
   echo -e "\n\n--- Codebase Contents ---\n"
-  find . -type f -not -path '*/node_modules/*' -not -path '*/.wrangler/*' -not -path '*/.git/*' -not -path '*/Docs/*' -not -path '*/dist/*' -not -name 'package-lock.json' -not -name 'zodebase.txt' -not -name 'worker-configuration.d.ts' -not -name '.env' -not -name '.dev.vars' -not -name '.gitignore' -not -name '.gitconfig' -not -name 'README.md' -not -name '*.svg' -not -name 'index3.ts' -not -name 'codebase.txt' -exec sh -c 'printf "\n\n======== File: %s ========\n\n" "$0"; cat "$0"' {} \;
+  find . -type f -not -path '*/node_modules/*' -not -path '*/.wrangler/*' -not -path '*/.git/*' -not -path '*/Docs/*' -not -path '*/dist/*' -not -path '*/assets/*' -not -name 'package-lock.json' -not -name 'zodebase.txt' -not -name 'worker-configuration.d.ts' -not -name '.env' -not -name '.dev.vars' -not -name '.gitignore' -not -name '.gitconfig' -not -name 'README.md' -not -name '*.svg' -not -name 'index3.ts' -not -name 'codebase.txt' -exec sh -c 'printf "\n\n======== File: %s ========\n\n" "$0"; cat "$0"' {} \;
 ) > "$OUTPUT_FILE"
 
 echo "Codebase documentation generated successfully at $OUTPUT_FILE"

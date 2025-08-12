@@ -96,7 +96,7 @@ export const requireAuth = async (c: Context<{ Bindings: Env, Variables: { privy
 		return c.json({ error: 'invalid_token', error_description: 'User AccessToken has been revoked' }, 401)
 	}
 
-	console.log('🛡️  MCP: Validated decrypted token for user:', tokenData.privyUser.id)
+	console.log('🔓 MCP: Validated decrypted token for user:', tokenData.privyUser.id)
 
 	// Set user context
 	c.set('privyUser', tokenData.privyUser)
@@ -450,7 +450,7 @@ export const authHandler = (app: Hono<{ Bindings: Env, Variables: { privyUser: P
 					console.error('🔴 TOKEN ERROR: PKCE validation failed')
 					return c.json({ error: 'invalid_grant', error_description: 'PKCE validation failed.' }, 400)
 				}
-				console.log('🛡️  TOKEN: Validated PKCE')
+				console.log('🔑 TOKEN: Validated PKCE')
 			}
 
 			// Enhanced client validation with explicit caching support
@@ -550,7 +550,7 @@ export const authHandler = (app: Hono<{ Bindings: Env, Variables: { privyUser: P
 			const wrappedRefreshHmacKey = await wrapKeyWithToken(newRefreshToken, refreshHmacKey, c.env)
 			const encryptedRefreshData = { encryptedData: encRefreshData, iv: refreshIv, wrappedKey: wrappedRefreshKey, hmac: refreshHmac, hmacKey: wrappedRefreshHmacKey }
 			await secureKvPut(c.env, `refresh_token:${await hashSecret(newRefreshToken)}`, JSON.stringify(encryptedRefreshData), 2592000)
-			console.log('🛡️  TOKEN: Encrypted Access, Identity, and Refresh tokens stored in KV')
+			console.log('🔐 TOKEN: Encrypted Access, Identity, and Refresh tokens stored in KV')
 
 			// Clean up authorization code
 			await c.env.OAUTH_KV.delete(`auth_code:${code}`)
@@ -773,7 +773,7 @@ export async function revokeToken(env: Env, token: string, revokeAll: boolean = 
 			}
 		}
 
-		console.log(`🛡️  MCP: Disconnected and revoked${revokeAll ? ' all user tokens' : ' user token'}`)
+		console.log(`🔒 MCP: Disconnected and revoked${revokeAll ? ' all user tokens' : ' user token'}`)
 	} catch (error) {
 		console.error('🔴 Revoke token failed:', error)
 		throw error
