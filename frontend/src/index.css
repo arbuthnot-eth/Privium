@@ -20,9 +20,14 @@
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
 
   /* Brand */
-  --brand: #6e7bff;
-  --brand-strong: #5663ff;
-  --brand-weak: rgba(110, 123, 255, 0.15);
+  --brand: #EFBF04; /* gold */
+  --brand-strong: #c79f00;
+  --brand-weak: rgba(239, 191, 4, 0.18);
+  --brand-contrast: #1b1200; /* for text on brand bg */
+
+  /* Accent inspired by logo glow */
+  --accent: #ff6a00; /* warm orange */
+  --accent-weak: rgba(255, 106, 0, 0.16);
 
   /* Accents */
   --success: #30d17a;
@@ -52,9 +57,12 @@
     --text-muted: #5b7186;
     --border: #e1e8ef;
     --shadow: 0 10px 24px rgba(20, 35, 50, 0.08);
-    --brand: #5a63ff;
-    --brand-strong: #3c45ff;
-    --brand-weak: rgba(90, 99, 255, 0.12);
+    --brand: #EFBF04;
+    --brand-strong: #c79f00;
+    --brand-weak: rgba(239, 191, 4, 0.14);
+    --brand-contrast: #1b1200;
+    --accent: #ff7a1a;
+    --accent-weak: rgba(255, 122, 26, 0.12);
     --success: #0f9d58;
     --success-weak: rgba(15, 157, 88, 0.12);
     --danger: #e5484d;
@@ -72,8 +80,8 @@ body {
   font-family: var(--font-sans);
   line-height: var(--line-height);
   color: var(--text);
-  background: radial-gradient(1200px 600px at 10% -10%, rgba(110, 123, 255, 0.15), transparent 60%),
-              radial-gradient(800px 500px at 90% 10%, rgba(48, 209, 122, 0.12), transparent 60%),
+  background: radial-gradient(1200px 600px at 10% -10%, var(--brand-weak), transparent 60%),
+              radial-gradient(800px 500px at 90% 10%, var(--accent-weak), transparent 60%),
               linear-gradient(180deg, var(--bg) 0%, #0b121a 100%);
 }
 
@@ -138,8 +146,8 @@ p { margin: 0; color: var(--text-muted); }
 
 .btn-primary {
   background: var(--brand);
-  color: white;
-  box-shadow: 0 6px 16px rgba(110, 123, 255, 0.35);
+  color: var(--brand-contrast);
+  box-shadow: 0 6px 16px rgba(239, 191, 4, 0.35);
 }
 .btn-primary:hover { background: var(--brand-strong); }
 
@@ -177,7 +185,7 @@ p { margin: 0; color: var(--text-muted); }
   position: fixed;
   inset: 0;
   background: radial-gradient(800px 500px at 20% -10%, var(--brand-weak), transparent 60%),
-              radial-gradient(600px 400px at 80% -10%, var(--success-weak), transparent 60%),
+              radial-gradient(600px 400px at 80% -10%, var(--accent-weak), transparent 60%),
               color-mix(in srgb, var(--bg) 82%, transparent);
   display: flex;
   align-items: center;
@@ -301,3 +309,36 @@ p { margin: 0; color: var(--text-muted); }
 .mt-4 { margin-top: var(--space-4); }
 .mt-5 { margin-top: var(--space-5); }
 .mt-6 { margin-top: var(--space-6); }
+
+/* ===== Privy UI Overrides (semi-transparent modal) ===== */
+body {
+  /* Background layers of the modal; lower values are subtler surfaces */
+  --privy-color-background: rgba(11, 15, 20, 0.72);
+  --privy-color-background-2: rgba(11, 15, 20, 0.58);
+  --privy-color-background-3: rgba(11, 15, 20, 0.44);
+
+  /* Text colors inside the modal */
+  --privy-color-foreground: var(--text);
+  --privy-color-foreground-2: var(--text-muted);
+  --privy-color-foreground-3: color-mix(in srgb, var(--text) 70%, transparent);
+  --privy-color-foreground-4: color-mix(in srgb, var(--text) 50%, transparent);
+  --privy-color-foreground-accent: var(--brand-contrast);
+
+  /* Accent system aligned to Privium palette */
+  --privy-color-accent: var(--brand);
+  --privy-color-accent-light: color-mix(in srgb, var(--brand) 70%, white);
+  --privy-color-accent-lightest: color-mix(in srgb, var(--brand) 40%, white);
+  --privy-color-accent-dark: var(--brand-strong);
+  --privy-color-accent-darkest: color-mix(in srgb, var(--brand-strong) 80%, black);
+
+  /* Feedback colors */
+  --privy-color-success: var(--success);
+  --privy-color-error: var(--danger);
+  --privy-color-error-light: var(--danger-weak);
+
+  /* Radii to match app */
+  --privy-border-radius-sm: var(--radius-xs);
+  --privy-border-radius-md: var(--radius-sm);
+  --privy-border-radius-lg: var(--radius);
+  --privy-border-radius-full: 999px;
+}

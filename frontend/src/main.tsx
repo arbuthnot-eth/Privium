@@ -16,7 +16,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       config={{
         appearance: {
           theme: 'dark',
-          accentColor: '#676FFF',
+          accentColor: '#EFBF04',
           walletChainType: 'ethereum-and-solana',
           walletList: ['detected_ethereum_wallets', 'detected_solana_wallets'],
         },
