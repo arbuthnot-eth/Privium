@@ -9,12 +9,18 @@ export async function getPrivyWallets(privyUser: PrivyUser): Promise<any | any[]
 
 
 export async function translateENS(ens: string, chain: string): Promise<string | null> {
-    const coinType = chainToCoinType[chain.toLowerCase()];
-    if (!coinType) throw new Error(`Unsupported chain: ${chain}`);
+    let coinType: number | undefined
+    if (chain == '') {
+        coinType = 60
+    } else {
+        coinType = chainToCoinType[chain.toLowerCase()]
+    }
+
+    if (!coinType && chain !== 'bitcoin' && chain !== 'btc') throw new Error(`Unsupported chain: ${chain}`)
   
     // Automatically append '.eth' if the input doesn't end with it (case-insensitive)
     if (!ens.toLowerCase().endsWith('.eth')) {
-      ens = `${ens}.eth`;
+      ens = `${ens}.eth`
     }
   
     const rpcUrl = process.env.ETH_RPC_URL || 'https://ethereum-rpc.publicnode.com';
@@ -24,10 +30,10 @@ export async function translateENS(ens: string, chain: string): Promise<string |
     });
   
     try {
-      const record = await client.getAddressRecord({ name: ens, coin: coinType });
-      if (!record?.value) throw new Error(`No address found for ENS ${ens} on chain ${chain}`);
-      return record.value;
+      const record = await client.getAddressRecord({ name: ens, coin: coinType })
+      if (!record?.value) throw new Error(`No address found for ENS ${ens} on chain ${chain}`)
+      return record.value
     } catch (error) {
-      throw new Error(`ENS resolution failed for ${ens} on ${chain}: ${(error as Error).message}`);
+      throw new Error(`ENS resolution failed for ${ens} on ${chain}: ${(error as Error).message}`)
     }
   }

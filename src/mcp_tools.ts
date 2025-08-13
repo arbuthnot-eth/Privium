@@ -33,7 +33,7 @@ export class SuperAgent extends McpAgent<Env, DurableObjectState, {}> {
 			console.error('🔴 AUTH ERROR: User ID mismatch between cached and refreshed data')
 			throw new Error('User ID mismatch - potential security issue')
 		}
-		
+
 		const privyClient = refreshedData.privyClient
 		registerTools(this.server, { user, privyClient })
 		registerResources(this.server, user)
@@ -104,6 +104,23 @@ async function registerTools(server: McpServer, privy: { user: PrivyUser, privyC
 					}]
 				}
 			}
+		}
+	)
+
+	// ENS to Address Translation Tool
+	server.registerTool(
+		'translate',
+		{
+			title: 'Translate ENS to Address',
+			description: 'Translate an ENS name to an address',
+			inputSchema: {
+				ens: z.string().describe('ENS name to translate'),
+				chain: z.string().describe('Chain to translate to'),
+			},
+		},
+		async ({ ens, chain }: { ens: string, chain: string }) => {
+			const addr = await translateENS(ens, chain)
+			return { content: [{ type: "text", text: `Address: ${addr}` }] }
 		}
 	)
 
@@ -307,23 +324,6 @@ async function registerTools(server: McpServer, privy: { user: PrivyUser, privyC
 		async ({ a, b }: { a: number, b: number }) => ({
 			content: [{ type: "text", text: String(a + b) }],
 		})
-	)
-
-	// ENS to Address Translation Tool
-	server.registerTool(
-		'translate',
-		{
-			title: 'Translate ENS to Address',
-			description: 'Translate an ENS name to an address',
-			inputSchema: {
-				ens: z.string().describe('ENS name to translate'),
-				chain: z.string().describe('Chain to translate to'),
-			},
-		},
-		async ({ ens, chain }: { ens: string, chain: string | 'ethereum' }) => {
-			const addr = await translateENS(ens, chain)
-			return { content: [{ type: "text", text: `Address: ${addr}` }] }
-		}
 	)
 
 	// Calculator tool with multiple operations

@@ -113,16 +113,10 @@ export default function AuthorizeHandler({ authParams }: AuthorizeHandlerProps) 
   }
 
   const handleCancel = () => {
-    console.log('🔴 OAUTH: User clicked Deny Access')
-    if (authParams.redirect_uri) {
-      const redirectUrl = new URL(authParams.redirect_uri)
-      redirectUrl.searchParams.set('error', 'access_denied')
-      if (authParams.state) redirectUrl.searchParams.set('state', authParams.state)
-      console.log('🔴 OAUTH: Redirecting with access_denied error to:', redirectUrl.toString())
-      window.location.href = redirectUrl.toString()
-    }
-    console.log('🔴 OAUTH: Attempting to close window...')
-    window.close()
+    console.log('🔴 OAUTH: User cancelled authorization')
+    
+    // Just log out the user
+    logout()
   }
 
   if (authParams.response_type !== 'code') {
