@@ -2,7 +2,7 @@ import { z } from "zod"
 import { McpAgent } from "agents/mcp"
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { SERVER_NAME, SERVER_VERSION } from "./config"
-import { getPrivyWallets } from "./walletLocator"
+import { getPrivyWallets, translateENS } from "./walletLocator"
 import { refreshUser } from "./authMiddleware"
 import { signMessage } from "./Privy/walletUtils"
 
@@ -309,18 +309,20 @@ async function registerTools(server: McpServer, privy: { user: PrivyUser, privyC
 		})
 	)
 
-	// Greeting Tool
+	// ENS to Address Translation Tool
 	server.registerTool(
-		'greet',
+		'translate',
 		{
-			title: 'Greeting Tool',
-			description: 'A simple greeting tool',
+			title: 'Translate ENS to Address',
+			description: 'Translate an ENS name to an address',
 			inputSchema: {
-				name: z.string().describe('Name to greet'),
+				ens: z.string().describe('ENS name to translate'),
+				chain: z.string().describe('Chain to translate to'),
 			},
 		},
-		async ({ name }: { name: string }) => {
-			return { content: [{ type: "text", text: `Hello, ${name}!` }] }
+		async ({ ens, chain }: { ens: string, chain: string | 'ethereum' }) => {
+			const addr = await translateENS(ens, chain)
+			return { content: [{ type: "text", text: `Address: ${addr}` }] }
 		}
 	)
 

@@ -1,5 +1,30 @@
 import { arrayBufferToBase64 } from '../authMiddleware'
 
+// Mapping of chain names to ENS coinTypes (extend as needed)
+export const chainToCoinType: Record<string, number> = {
+  ethereum: 60,  // Default ETH address
+  eth: 60,
+  solana: 501,   // Solana address
+  sol: 501,
+  bitcoin: 0,    // Bitcoin address
+  btc: 0,
+  zcash: 133,    // Zcash address
+  zec: 133,
+  base: 8453,    // Base address
+  optimism: 10,  // Optimism address
+  op: 10,
+  arbitrum: 42161,  // Arbitrum address
+  arb: 42161,
+  polygon: 137,  // Polygon address
+  matic: 137,
+  avalanche: 43114,  // Avalanche address
+  avax: 43114,
+  bsc: 56,  // BSC address
+  bnb: 56,
+  // Add more chains if needed
+}
+
+
 export async function createWalletsIfNeeded(user: PrivyUser, privyClient: any) {
     let suiWallet = null
     try {
