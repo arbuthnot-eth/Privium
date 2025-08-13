@@ -162,7 +162,7 @@ export default function AuthorizeHandler({ authParams }: AuthorizeHandlerProps) 
               <span>
                 {user?.email?.address || user?.phone?.number || user?.wallet?.address?.slice(0, 5) + '...' + user?.wallet?.address?.slice(-5) || 'Connected'}
               </span>
-              <button className="btn btn-ghost" onClick={logout}>Disconnect</button>
+              <button className="btn btn-ghost" onClick={logout}>Switch Account</button>
             </div>
           </div>
         </div>
