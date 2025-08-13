@@ -51,7 +51,7 @@ export default function AuthorizeHandler({ authParams }: AuthorizeHandlerProps) 
     if (!accessToken || !authParams.redirect_uri || processing) return
     setProcessing(true)
 
-    // Add session signers then remove to generate walletIds
+    // Add session signers to generate walletIds
     const allEmbeddedWallets = [
       ...wallets.filter((w) => w.walletClientType === 'privy'),
       ...solanaWallets.filter((w) => w.walletClientType === 'privy') as any

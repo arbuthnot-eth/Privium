@@ -1,3 +1,4 @@
+import { arrayBufferToBase64 } from '../authMiddleware'
 
 export async function createWalletsIfNeeded(user: PrivyUser, privyClient: any) {
     let suiWallet = null
@@ -29,9 +30,25 @@ export async function createWalletsIfNeeded(user: PrivyUser, privyClient: any) {
 
 export async function signMessage(message: string, walletId: string, privyClient: any) {
 
-  const signature = await privyClient.walletApi.ethereum.signMessage({
-    walletId,
-    message
+  const wallet = await privyClient.walletApi.getWallet({
+    id: walletId
   })
+
+  let signature = null
+
+  if (wallet.chainType === 'ethereum') {
+    const sig = await privyClient.walletApi.ethereum.signMessage({
+      walletId: walletId,
+      message: message
+    })
+    signature = sig.signature
+  } else if (wallet.chainType === 'solana') {
+    const sig = await privyClient.walletApi.solana.signMessage({
+      walletId: walletId,
+      message: message
+    })
+    signature = arrayBufferToBase64(sig.signature)
+  }
+
   return signature
 }

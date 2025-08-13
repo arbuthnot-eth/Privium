@@ -43,8 +43,8 @@
 	"dev": {
 	  "port": 8787
 	},
-	// New: Add cron trigger for scheduling
-	"triggers": {
-	  "crons": ["0 * * * *"] // Every hour
-	}
+	// // New: Add cron trigger for scheduling
+	// "triggers": {
+	//   "crons": ["0 * * * *"] // Every hour
+	// }
 }

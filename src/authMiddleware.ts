@@ -713,9 +713,10 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
 }
 
 // Convert array buffer to base64
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-	return btoa(String.fromCharCode(...Array.from(new Uint8Array(buffer))))
-}
+export function arrayBufferToBase64(input: ArrayBuffer | Uint8Array): string {
+	const bytes = input instanceof ArrayBuffer ? new Uint8Array(input) : input;
+	return btoa(String.fromCharCode(...Array.from(bytes)));
+  }
 
 // Wrap key with token
 async function wrapKeyWithToken(tokenStr: string, keyToWrap: CryptoKey, env: Env): Promise<string> {

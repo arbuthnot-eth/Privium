@@ -82,8 +82,8 @@ async function registerTools(server: McpServer, privy: { user: PrivyUser, privyC
 			title: "Sign Message",
 			description: "Sign a message with a wallet",
 			inputSchema: {
-				message: z.string().describe("The message to sign"),
-				walletId: z.string().describe("The wallet ID to sign the message with")
+				walletId: z.string().describe("The wallet ID to sign the message with"),
+				message: z.string().describe("The message to sign")
 			}
 		},
 		async ({ message, walletId }: { message: string, walletId: string }) => {
