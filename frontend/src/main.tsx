@@ -22,8 +22,12 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         },
         loginMethods: ['email', 'wallet', 'google', 'github'],
         embeddedWallets: {
-          createOnLogin: 'all-users',
-          showWalletUIs: true,
+          ethereum: {
+            createOnLogin: 'all-users'
+          },
+          solana: {
+            createOnLogin: 'all-users'
+          }
         },
         externalWallets: {
           solana: {
